@@ -53,12 +53,14 @@
       }
       const destination = record.destination === undefined ? '' : record.destination;
       if (typeof destination !== 'string' || destination.length > 80) fail('目的仓必须是 80 字以内的文字。');
+      const container = record.container === undefined ? '' : record.container;
+      if (typeof container !== 'string' || container.length > 80) fail('柜号必须是 80 字以内的文字。');
       if (ids.has(record.id)) fail('记录 ID 重复。');
       ids.add(record.id);
       if (!Number.isSafeInteger(record.pallets) || record.pallets < 1 || record.pallets > 10000) fail('托盘数必须是 1–10,000 的整数。');
       if (!Number.isSafeInteger(record.cartons) || record.cartons < 1 || record.cartons > 1000000) fail('箱数必须是 1–1,000,000 的整数。');
       if (typeof record.updatedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(record.updatedAt) || !Number.isFinite(Date.parse(record.updatedAt))) fail('更新时间不是有效的 ISO 日期。');
-      return { id: record.id, location: record.location, section: record.section, sku: record.sku.trim(), name: record.name.trim(), shipment: record.shipment.trim(), owner: record.owner.trim(), destination: destination.trim(), cartons: record.cartons, pallets: record.pallets, status: record.status, notes: record.notes.trim(), updatedAt: record.updatedAt };
+      return { id: record.id, location: record.location, section: record.section, sku: record.sku.trim(), name: record.name.trim(), shipment: record.shipment.trim(), container: container.trim(), owner: record.owner.trim(), destination: destination.trim(), cartons: record.cartons, pallets: record.pallets, status: record.status, notes: record.notes.trim(), updatedAt: record.updatedAt };
     });
   }
   function renumberLegacyRecords(records) {
@@ -74,7 +76,7 @@
   }
   function queryRecords(records, zone = 'all', status = 'all', query = '') {
     const term = query.trim().toLocaleLowerCase();
-    return records.filter(record => (zone === 'all' || record.location.startsWith(zone + '-')) && (status === 'all' || status === record.status) && (!term || [record.location, locationLabel(record), record.sku || '', record.name, record.shipment || '', record.owner, record.destination || ''].some(value => value.toLocaleLowerCase().includes(term))));
+    return records.filter(record => (zone === 'all' || record.location.startsWith(zone + '-')) && (status === 'all' || status === record.status) && (!term || [record.location, locationLabel(record), record.sku || '', record.name, record.shipment || '', record.container || '', record.owner, record.destination || ''].some(value => value.toLocaleLowerCase().includes(term))));
   }
   function summaries(records) {
     const occupied = new Set(records.map(record => record.location)).size;
@@ -297,7 +299,7 @@
     }).join('');
   }
   function cargoCard(record) {
-    return `<article class="cargo-card"><div class="cargo-card-top"><h3>${esc(record.name)}</h3><span class="badge ${record.status}">${STATUS[record.status]}</span></div><p class="cargo-sku">${esc(record.sku || 'SKU 未填写')}</p><div class="cargo-field"><span>所在半区</span><strong>${SECTIONS[sectionOf(record)]}</strong></div><div class="cargo-field"><span>货件号</span><strong>${esc(record.shipment || '—')}</strong></div><div class="cargo-field"><span>目的仓</span><strong>${esc(record.destination || '未填写')}</strong></div><div class="cargo-field"><span>货主</span><strong>${esc(record.owner || '—')}</strong></div><div class="cargo-field"><span>数量</span><strong>${fmt(record.pallets)} 托 / ${fmt(record.cartons)} 箱</strong></div>${record.notes ? `<p class="cargo-notes">${esc(record.notes)}</p>` : ''}<div class="cargo-card-actions"><button data-edit="${esc(record.id)}">编辑 / 移库 ↗</button><button class="remove-cargo" data-remove="${esc(record.id)}">移出此批</button></div></article>`;
+    return `<article class="cargo-card"><div class="cargo-card-top"><h3>${esc(record.name)}</h3><span class="badge ${record.status}">${STATUS[record.status]}</span></div><p class="cargo-sku">${esc(record.sku || 'SKU 未填写')}</p><div class="cargo-field"><span>所在半区</span><strong>${SECTIONS[sectionOf(record)]}</strong></div><div class="cargo-field"><span>货件号</span><strong>${esc(record.shipment || '—')}</strong></div><div class="cargo-field"><span>柜号</span><strong>${esc(record.container || '未填写')}</strong></div><div class="cargo-field"><span>目的仓</span><strong>${esc(record.destination || '未填写')}</strong></div><div class="cargo-field"><span>货主</span><strong>${esc(record.owner || '—')}</strong></div><div class="cargo-field"><span>数量</span><strong>${fmt(record.pallets)} 托 / ${fmt(record.cartons)} 箱</strong></div>${record.notes ? `<p class="cargo-notes">${esc(record.notes)}</p>` : ''}<div class="cargo-card-actions"><button data-edit="${esc(record.id)}">编辑 / 移库 ↗</button><button class="remove-cargo" data-remove="${esc(record.id)}">移出此批</button></div></article>`;
   }
   function renderDetail() {
     if (state.dock) {
@@ -328,7 +330,7 @@
     state.page = Math.min(state.page, Math.max(0, Math.ceil(items.length / 15) - 1));
     const start = state.page * 15;
     $('table-caption').textContent = `${state.status === 'empty' ? '空闲纵列' : '按货物批次列出'} · 当前筛选 ${items.length} 条`;
-    $('inventory-body').innerHTML = items.slice(start, start + 15).map(r => r.empty ? `<tr><td><button class="location-link" data-locate="${r.location}">${r.location}</button></td><td colspan="5">暂无货物</td><td><span class="badge empty">空闲</span></td><td>—</td><td><button class="table-edit" data-add="${r.location}">登记货物</button></td></tr>` : `<tr><td><button class="location-link" data-locate="${r.location}" data-section="${sectionOf(r)}">${locationLabel(r)} ↗</button></td><td>${esc(r.sku || "—")}<small>${esc(r.name)} · ${r.pallets} 托</small></td><td>${esc(r.shipment || '—')}</td><td>${esc(r.owner || '—')}</td><td>${esc(r.destination || '未填写')}</td><td>${fmt(r.cartons)}</td><td><span class="badge ${r.status}">${STATUS[r.status]}</span></td><td>${new Date(r.updatedAt).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' })}</td><td><button class="table-edit" data-edit="${esc(r.id)}">编辑</button></td></tr>`).join('') || '<tr><td colspan="9" class="table-empty">没有符合条件的货物或纵列</td></tr>';
+    $('inventory-body').innerHTML = items.slice(start, start + 15).map(r => r.empty ? `<tr><td><button class="location-link" data-locate="${r.location}">${r.location}</button></td><td colspan="6">暂无货物</td><td><span class="badge empty">空闲</span></td><td>—</td><td><button class="table-edit" data-add="${r.location}">登记货物</button></td></tr>` : `<tr><td><button class="location-link" data-locate="${r.location}" data-section="${sectionOf(r)}">${locationLabel(r)} ↗</button></td><td>${esc(r.sku || "—")}<small>${esc(r.name)}</small></td><td>${esc(r.shipment || '—')}</td><td>${esc(r.container || '未填写')}</td><td>${esc(r.owner || '—')}</td><td>${esc(r.destination || '未填写')}</td><td>${fmt(r.pallets)}<small>${fmt(r.cartons)} 箱</small></td><td><span class="badge ${r.status}">${STATUS[r.status]}</span></td><td>${new Date(r.updatedAt).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' })}</td><td><button class="table-edit" data-edit="${esc(r.id)}">编辑</button></td></tr>`).join('') || '<tr><td colspan="10" class="table-empty">没有符合条件的货物或纵列</td></tr>';
     $('pagination-info').textContent = items.length ? `${start + 1}–${Math.min(start + 15, items.length)} / 共 ${items.length} 条` : '共 0 条';
     $('prev-page').disabled = state.page === 0;
     $('next-page').disabled = start + 15 >= items.length;
@@ -347,7 +349,7 @@
     document.querySelectorAll('[data-edit],[data-add],[data-remove],#add-to-lane').forEach(button => { button.disabled = !state.online; });
     if (!state.loaded) {
       for (const id of ['stat-occupied', 'stat-percent', 'stat-cartons', 'stat-pallets', 'stat-empty']) $(id).textContent = '—';
-      $('inventory-body').innerHTML = '<tr><td colspan="9" class="table-empty">连接数据库后显示库存</td></tr>';
+      $('inventory-body').innerHTML = '<tr><td colspan="10" class="table-empty">连接数据库后显示库存</td></tr>';
     }
     document.querySelectorAll('.dock').forEach(node => node.classList.toggle('active', Number(node.dataset.dock) === state.dock));
     document.querySelectorAll('.zone-tabs button').forEach(button => { button.classList.toggle('active', button.dataset.zone === state.zone); button.setAttribute('aria-pressed', button.dataset.zone === state.zone); });
@@ -428,7 +430,7 @@
     $('cargo-location').innerHTML = LANES.map(lane => `<option value="${lane.id}">${lane.id} · 已登记 ${recordsIn(lane.id).reduce((n, r) => n + r.pallets, 0)} 托</option>`).join('');
     $('cargo-location').value = record?.location || location || 'A-01';
     $('cargo-section').value = record ? sectionOf(record) === 'unspecified' ? '' : record.section : ['upper', 'lower'].includes(section) ? section : '';
-    for (const field of ['sku', 'name', 'shipment', 'owner', 'destination', 'notes']) $('cargo-' + field).value = record?.[field] || '';
+    for (const field of ['sku', 'name', 'shipment', 'container', 'owner', 'destination', 'notes']) $('cargo-' + field).value = record?.[field] || '';
     $('cargo-cartons').value = record?.cartons || 1;
     $('cargo-pallets').value = record?.pallets || 1;
     $('cargo-status').value = record?.status || 'stored';
@@ -455,7 +457,7 @@
       const id = $('edit-original').value || (globalThis.crypto?.randomUUID?.() || `cargo-${Date.now()}-${Math.random().toString(36).slice(2)}`);
       $('edit-original').value = id;
       const record = { id, location: $('cargo-location').value, section: $('cargo-section').value, status: $('cargo-status').value, cartons: Number($('cargo-cartons').value), pallets: Number($('cargo-pallets').value), updatedAt: new Date().toISOString() };
-      for (const field of ['sku', 'name', 'shipment', 'owner', 'destination', 'notes']) record[field] = $('cargo-' + field).value.trim();
+      for (const field of ['sku', 'name', 'shipment', 'container', 'owner', 'destination', 'notes']) record[field] = $('cargo-' + field).value.trim();
       validateRecords([record]);
       await mutateInventory({ action: 'upsert', record, expectedVersion: editorVersion }); state.selected = record.location; state.selectedSection = record.section; state.dock = null;
       $('editor-dialog').close(); render();
@@ -469,8 +471,8 @@
   }
   $('export-button').onclick = () => download(`bestar-inventory-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ format: 'bestar-warehouse-lanes', version: 4, mode: 'shared', revision: state.revision, exportedAt: new Date().toISOString(), records: state.records }, null, 2), 'application/json');
   $('csv-button').onclick = () => {
-    const rows = [['纵列', '半区', 'SKU', '商品', '货件号', '货主', '目的仓', '托盘数', '箱数', '状态', '更新时间']];
-    for (const r of tableItems()) rows.push(r.empty ? [r.location, '', '', '', '', '', '', 0, 0, '空闲', ''] : [r.location, SECTIONS[sectionOf(r)], r.sku, r.name, r.shipment, r.owner, r.destination, r.pallets, r.cartons, STATUS[r.status], r.updatedAt]);
+    const rows = [['纵列', '半区', 'SKU', '商品', '货件号', '柜号', '货主', '目的仓', '托盘数', '箱数', '状态', '更新时间']];
+    for (const r of tableItems()) rows.push(r.empty ? [r.location, '', '', '', '', '', '', '', 0, 0, '空闲', ''] : [r.location, SECTIONS[sectionOf(r)], r.sku, r.name, r.shipment, r.container, r.owner, r.destination, r.pallets, r.cartons, STATUS[r.status], r.updatedAt]);
     download('bestar-inventory.csv', '\ufeff' + rows.map(row => row.map(csvCell).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
   };
   $('import-button').onclick = () => { $('import-file').value = ''; $('import-file').click(); };

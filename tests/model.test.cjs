@@ -120,7 +120,7 @@ test('v1/v2 backups retain every physical lane and quantity when reversing the l
       const zone = m.ZONES.find(z => z.id === old.location[0]);
       const oldX = zone.x + (Number(old.location.slice(2)) - 1) * m.LANE_WIDTH;
       assert.ok(Math.abs(m.LANE_BY_ID[current.location].x - oldX) < 1e-8);
-      assert.deepEqual({ ...current, location: old.location }, { ...old, section: 'unspecified' });
+      assert.deepEqual({ ...current, location: old.location }, { ...old, section: 'unspecified', container: '' });
     }
   }
 });
@@ -158,4 +158,18 @@ test('halves and optional SKU/FBA round-trip in v4; legacy records remain unassi
   assert.equal(m.queryRecords(data, 'all', 'all', '上半区').length, 1);
   assert.equal(m.queryRecords(data, 'all', 'all', '下半区')[0].id, 'lower');
   for (const patch of [{ section: 'middle' }, { section: '' }, { section: null }, { section: ['upper'] }, { sku: 12 }, { shipment: null }]) assert.throws(() => m.validateRecords([{ ...upper, ...patch }]));
+});
+
+test('container number is optional for old records and survives search and backup round trips', () => {
+  const [old] = fixtures.records();
+  assert.equal(m.validateRecords([old])[0].container, '');
+  for (const version of [1, 2, 3, 4]) {
+    assert.equal(m.parseBackup(JSON.stringify({ format: 'bestar-warehouse-lanes', version, records: [old] })).records[0].container, '');
+  }
+  const data = m.validateRecords([{ ...old, container: '  TEST-CONTAINER-001  ' }]);
+  assert.equal(data[0].container, 'TEST-CONTAINER-001');
+  assert.equal(m.queryRecords(data, 'all', 'all', 'test-container-001').length, 1);
+  assert.equal(m.queryRecords(data, 'B', 'all', 'test-container-001').length, 0);
+  assert.deepEqual(m.parseBackup(JSON.stringify({ format: 'bestar-warehouse-lanes', version: 4, records: data })).records, data);
+  for (const container of [null, 123, [], 'x'.repeat(81)]) assert.throws(() => m.validateRecords([{ ...old, container }]));
 });

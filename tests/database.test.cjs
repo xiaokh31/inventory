@@ -12,7 +12,7 @@ if (!baseUrl) throw new Error('请先配置 TEST_DATABASE_URL 或本地 DATABASE
 const schema = 'inventory_test_' + crypto.randomBytes(8).toString('hex');
 let admin, server, origin, handler, closeStore;
 let snapshot;
-const record = { id: 'shared-test-1', location: 'A-01', section: 'upper', sku: '', name: '数据库隔离测试', shipment: '', owner: '', destination: 'ONT8', pallets: 2, cartons: 12, status: 'stored', notes: '', updatedAt: new Date().toISOString() };
+const record = { id: 'shared-test-1', location: 'A-01', section: 'upper', sku: '', name: '数据库隔离测试', shipment: '', container: 'TEST-CONTAINER-001', owner: '', destination: 'ONT8', pallets: 2, cartons: 12, status: 'stored', notes: '', updatedAt: new Date().toISOString() };
 async function request(route, method = 'GET', body, headers = {}) {
   const response = await fetch(origin + route, { method, headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers }, body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body) });
   return { status: response.status, data: await response.json(), cookie: response.headers.get('set-cookie')?.split(';')[0] };
@@ -54,10 +54,12 @@ test('two anonymous clients share committed records, including destination and m
   const readByB = await request('/api/inventory', 'GET', undefined);
   assert.equal(readByB.data.records[0].destination, 'ONT8'); assert.equal(readByB.data.versions[record.id], snapshot.versions[record.id]);
   assert.equal(readByB.data.records[0].section, 'upper'); assert.equal(readByB.data.records[0].sku, ''); assert.equal(readByB.data.records[0].shipment, '');
-  const moved = await request('/api/inventory', 'POST', { action: 'upsert', record: { ...record, location: 'C-15', section: 'lower', destination: 'LAX9' }, expectedVersion: snapshot.versions[record.id] });
+  assert.equal(readByB.data.records[0].container, 'TEST-CONTAINER-001');
+  const moved = await request('/api/inventory', 'POST', { action: 'upsert', record: { ...record, location: 'C-15', section: 'lower', container: 'TEST-CONTAINER-002', destination: 'LAX9' }, expectedVersion: snapshot.versions[record.id] });
   assert.equal(moved.status, 200); snapshot = moved.data;
   assert.equal((await request('/api/inventory', 'GET', undefined)).data.records[0].location, 'C-15');
   assert.equal((await request('/api/inventory')).data.records[0].section, 'lower');
+  assert.equal((await request('/api/inventory')).data.records[0].container, 'TEST-CONTAINER-002');
 });
 test('concurrent writes have exactly one winner and stale deletion/import cannot erase changes', async () => {
   const expectedVersion = snapshot.versions[record.id], expectedRevision = snapshot.revision;
