@@ -1,0 +1,11 @@
+artifacts/
+node_modules/
+dist/
+.vercel/
+.env
+.env.*
+!.env.example
+!.env.docker.example
+backups/
+data/
+.cache/

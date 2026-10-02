@@ -1,0 +1,22 @@
+# An allowlist keeps credentials, host databases and backups out of build context.
+**
+!Dockerfile
+!package.json
+!package-lock.json
+!vercel.json
+!src/
+!src/**
+!assets/
+!assets/brand-wordmark.png
+!server/
+!server/**
+!api/
+!api/**
+!db/
+!db/migrations/
+!db/migrations/**
+!scripts/
+!scripts/*.cjs
+!tests/
+!tests/*.cjs
+!unit23_available_area_clean_no_text.png

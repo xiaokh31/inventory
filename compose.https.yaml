@@ -1,0 +1,23 @@
+# Optional HTTPS deployment; PUBLIC_HOST must be a domain pointing to this server.
+services:
+  app:
+    environment:
+      APP_ORIGIN: https://${PUBLIC_HOST:?Set PUBLIC_HOST in .env.docker}
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST in .env.docker}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+volumes:
+  caddy_data:
+  caddy_config:

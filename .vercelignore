@@ -1,0 +1,16 @@
+artifacts/
+tests/
+docs/
+README.md
+区域说明.png
+index.html
+dist/
+.env
+.env.*
+data/
+.cache/
+Dockerfile
+.dockerignore
+compose*.yaml
+deploy/
+backups/

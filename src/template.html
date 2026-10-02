@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#253238">
+  <title>BESTAR · 仓库库存与货物定位</title>
+  <style>/* INLINE_STYLES */</style>
+</head>
+<body>
+  <aside class="app-sidebar">
+    <a class="brand" href="#" aria-label="BESTAR 仓库首页"><img src="__BRAND__" alt="BESTAR" width="182" height="40"><small>仓储运营工作台</small></a>
+    <div class="sidebar-section">WAREHOUSE OPERATIONS</div>
+    <nav class="main-nav" aria-label="主导航"><button class="nav-tab active" data-view="map"><span aria-hidden="true">▦</span> 仓库地图</button><button class="nav-tab" data-view="inventory"><span aria-hidden="true">▤</span> 库存台账</button></nav>
+    <div class="sidebar-foot"><span class="warehouse-code">UNIT 23</span><p>FBA · A / B / C 区</p><small>45 条纵列 · 12 个装卸口</small></div>
+  </aside>
+  <header class="app-header">
+    <div class="header-title"><span class="header-marker"></span><strong>仓库运营</strong><span>/ 库存与定位</span></div>
+    <div class="header-right"><span id="connection-label" class="connection-label" role="status">共享库存 · 连接中</span><div class="theme-picker" role="group" aria-label="界面主题"><button data-theme-choice="light" aria-label="浅色主题" title="浅色">☀</button><button data-theme-choice="dark" aria-label="深色主题" title="深色">☾</button><button data-theme-choice="system" aria-label="跟随系统主题" title="跟随系统">◐</button></div></div>
+  </header>
+  <main>
+    <div class="heading-row"><div><div class="eyebrow">UNIT 23 <span>/</span> INVENTORY & LOCATION</div><h1>仓库库存与货物定位<span class="site-tag">FBA</span></h1><p class="subtitle">共享库存实时核对，货物精确定位到整条纵列。</p></div><div class="heading-actions"><button class="button" id="import-button" disabled><span aria-hidden="true">↥</span> 导入数据</button><button class="button" id="export-button" disabled><span aria-hidden="true">↧</span> 导出备份</button><button class="button primary" id="add-button" disabled><span aria-hidden="true">＋</span> 货物入库</button></div></div>
+    <div class="dataset-bar"><div><span class="mode-dot"></span><strong id="mode-title">数据库共享库存</strong><span id="mode-description">正在连接…</span></div><button id="sync-button">↻ 立即同步</button></div>
+    <div class="legacy-notice" id="legacy-notice" hidden><span id="legacy-description"></span><button id="legacy-import-button" class="button small" disabled>导入旧浏览器库存</button></div>
+    <section class="stats-grid" aria-label="全仓库存概览">
+      <div class="stat"><div class="stat-label">规划纵列 <span class="stat-icon">▦</span></div><div class="stat-number" id="stat-total">—</div><div class="stat-caption">A / B / C · 各 15 列 · 容量避开柱位</div></div>
+      <div class="stat"><div class="stat-label">已用纵列 <span class="stat-icon">▣</span></div><div class="stat-number"><span id="stat-occupied">—</span><small id="stat-percent">—</small></div><div class="occupancy-track"><span id="occupancy-bar"></span></div></div>
+      <div class="stat"><div class="stat-label">库存箱数 <span class="stat-icon">▤</span></div><div class="stat-number" id="stat-cartons">—</div><div class="stat-caption"><span id="stat-pallets">—</span> 托盘 · 含待出库货物</div></div>
+      <div class="stat"><div class="stat-label">空闲纵列 <span class="stat-icon">□</span></div><div class="stat-number green" id="stat-empty">—</div><div class="stat-caption"><span class="tiny-dot"></span> 可安排入库</div></div>
+    </section>
+    <div class="workspace-toolbar"><div class="zone-tabs" role="group" aria-label="区域筛选"><button class="active" data-zone="all">全部区域</button><button data-zone="A">A 区 <span id="count-A"></span></button><button data-zone="B">B 区 <span id="count-B"></span></button><button data-zone="C">C 区 <span id="count-C"></span></button></div><div class="search-group"><label class="search-box"><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="搜索 SKU、货件、目的仓、货主…" aria-label="搜索 SKU、货件号、目的仓、货主或库位"><kbd>/</kbd></label><select id="status-filter" aria-label="库存状态筛选"><option value="all">全部状态</option><option value="stored">在库</option><option value="outbound">待出库</option><option value="reserved">预留</option><option value="empty">空闲</option></select></div></div>
+    <div id="search-summary" class="search-summary" hidden></div>
+    <div class="workspace" id="map-view">
+      <section class="map-panel" aria-label="仓库交互地图">
+        <div class="panel-heading"><div><h2>仓库平面图 <span class="small-tag">2D MAP</span></h2><p id="map-caption">FBA 作业区 · 点击纵列查看货物</p></div><div class="map-top-actions"><button id="overview-button" class="text-button">全仓总览</button><button id="fba-button" class="text-button active">FBA 作业区</button></div></div>
+        <div class="map-stage" id="map-stage">
+          <svg id="warehouse-map" viewBox="275 685 1080 1270" role="group" aria-label="仓库地图。A 区在下、B 区在中、C 区在上，办公室位于右下。可使用搜索或库存台账选择库位。">
+            <defs><pattern id="canvas-grid" width="25" height="25" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.8" fill="#dbe3df"/></pattern><pattern id="blocked-pattern" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9aa6a1" stroke-width="2"/></pattern></defs>
+            <rect x="-8000" y="-8000" width="18000" height="18000" fill="#f4f7f5"/>
+            <rect x="-8000" y="-8000" width="18000" height="18000" fill="url(#canvas-grid)"/>
+            <g id="map-content"><rect x="3" y="10" width="1208" height="1924" fill="#fff"/>
+            <image id="original-plan" href="__FLOORPLAN__" x="0" y="0" width="1385" height="1956" opacity="0.34"/>
+            <g id="structure-layer"></g><g id="slots-layer"></g><g id="columns-layer"></g><g id="labels-layer"></g><g id="selection-layer" pointer-events="none"></g></g>
+          </svg>
+          <div class="map-key"><span class="orientation"><b id="orientation-arrow">↑</b><small>图纸上方</small></span></div>
+          <div class="map-layer-controls"><label><input type="checkbox" id="show-original" checked>原图</label><label><input type="checkbox" id="show-columns" checked>柱位</label><label><input type="checkbox" id="show-labels" checked>编号</label></div>
+          <div class="map-zoom"><button id="zoom-in" aria-label="放大地图">＋</button><span id="zoom-label">100%</span><button id="zoom-out" aria-label="缩小地图">−</button><span class="zoom-divider"></span><button id="reset-view" aria-label="重置地图视图">⛶</button></div>
+          <div class="map-rotation" role="group" aria-label="地图旋转"><button id="rotate-left" aria-label="向左旋转90度" title="向左旋转 90°">↶</button><span id="rotation-label" aria-live="polite">0°</span><button id="rotate-right" aria-label="向右旋转90度" title="向右旋转 90°">↷</button><button id="rotate-reset" aria-label="恢复图纸原始方向">复位</button></div>
+          <div class="map-scale"><span></span>5 m <small>图纸估算</small></div>
+          <div class="map-tooltip" id="map-tooltip" hidden></div>
+        </div>
+        <div class="map-footer"><div class="legend"><span><i class="swatch stored"></i>在库</span><span><i class="swatch outbound"></i>待出库</span><span><i class="swatch reserved"></i>预留</span><span><i class="swatch empty"></i>空闲</span><span><i class="swatch column"></i>承重柱</span></div><span class="map-hint">滚轮缩放 · 拖动平移</span></div>
+      </section>
+      <aside class="detail-panel" aria-label="库位详情"><div class="detail-top"><span class="eyebrow">LOCATION DETAILS</span><span class="live-dot"></span></div><div id="detail-content"></div><div class="detail-bottom"><h3>布局依据</h3><div class="spec-row"><span>托盘尺寸</span><strong>1.0 × 1.2 m</strong></div><div class="spec-row"><span>库位宽度</span><strong>1.6 m</strong></div><div class="spec-row"><span>每跨柱距</span><strong>7.5 库位 ≈ 12 m</strong></div><div class="spec-row"><span>摆放方向</span><strong>沿图纸竖向</strong></div><button class="assumption-button" id="layout-info-button">查看编号与规划说明 <span>↗</span></button></div></aside>
+    </div>
+    <section class="inventory-panel" id="inventory-view" hidden><div class="panel-heading"><div><h2>库存台账</h2><p id="table-caption"></p></div><button class="button small" id="csv-button">导出当前表格 CSV</button></div><div class="table-scroll"><table><thead><tr><th>库位</th><th>SKU / 商品</th><th>货件号</th><th>货主</th><th>目的仓</th><th>箱数</th><th>状态</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="inventory-body"></tbody></table></div><div class="table-pagination"><span id="pagination-info"></span><div><button class="button small" id="prev-page">上一页</button><button class="button small" id="next-page">下一页</button></div></div></section>
+    <section class="zone-overview" aria-label="分区概览" id="zone-overview"></section>
+    <footer class="page-footer"><span>BESTAR <span class="footer-divider">/</span> 仓储可视化工作台</span><span id="save-status">正在连接共享库存…</span></footer>
+  </main>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <dialog id="editor-dialog"><form id="cargo-form"><div class="dialog-heading"><div><div class="eyebrow">INVENTORY RECORD</div><h2 id="editor-title">货物入库</h2></div><button type="button" class="close-button" data-close="editor-dialog" aria-label="关闭">×</button></div><p class="dialog-description" id="editor-description"></p><input type="hidden" id="edit-original"><div class="form-grid"><label>所在纵列<select id="cargo-location" required></select></label><label>状态<select id="cargo-status"><option value="stored">在库</option><option value="outbound">待出库</option><option value="reserved">预留</option></select></label><label>SKU<input id="cargo-sku" required maxlength="80" placeholder="例如：FBA-HOME-001"></label><label>商品名称<input id="cargo-name" required maxlength="100" placeholder="输入商品名称"></label><label>FBA 货件号<input id="cargo-shipment" maxlength="80" placeholder="例如：FBA18…"></label><label>货主<input id="cargo-owner" maxlength="80" placeholder="客户 / 货主名称"></label><label class="full">目的仓<input id="cargo-destination" maxlength="80" placeholder="例如：ONT8、LAX9 或目的仓名称"></label><label>箱数<input id="cargo-cartons" type="number" required min="1" max="1000000" step="1" value="1"></label><label>托盘数<input id="cargo-pallets" type="number" required min="1" max="10000" step="1" value="1"></label><label class="full">备注<textarea id="cargo-notes" rows="3" maxlength="500" placeholder="批次、收货情况或操作备注"></textarea></label></div><p id="form-error" class="form-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="button" data-close="editor-dialog">取消</button><button type="submit" class="button primary">保存货物</button></div></form></dialog>
+  <dialog id="info-dialog"><div class="dialog-heading"><div><div class="eyebrow">LAYOUT NOTES</div><h2>纵列编号与规划说明</h2></div><button class="close-button" data-close="info-dialog" aria-label="关闭">×</button></div><div class="info-content"><div class="code-example">A <span>－</span> 05</div><p><strong>A 区 · 从右向左第 05 纵列</strong></p><p>货物定位到整条纵列，同一列可记录多批货物。A、B、C 边界取自「区域说明」原图；货架区从原区域向左延伸至仓库左墙，图中的托盘图形仅表示数量，不代表逐托的实际位置。</p><ul><li>横向柱距按 7.5 × 1.6 = 12 米标定，两跨约 15 列；托盘长边 1.2 米沿图纸竖向。</li><li>每列建议容量按纵深 / 1.2 米估算，并扣除与柱位相交的托盘示意格，未计额外作业间隙。容量须现场复核，不作实际库容承诺。</li><li>按原图方点保留承重柱，柱边预留约 0.3 米示意距离；图中托盘避开柱位。实际柱体及安全距离须现场复核。</li><li>A/B/C 之间保留叉车道；货架区、办公室、右侧作业通道不分配 FBA 地面库位。</li><li>右侧 dock 自下向上为 23–34；12′w × 14′h 出入口及 drive-in 单独标识，不计入 dock。</li><li>同一纵列的混 SKU、多货件分开登记。超过建议容量会提示，但保留实际登记数量。</li></ul><p class="note-box">库存保存于共享数据库，每 5 秒自动同步，也可手动同步。导入会替换所有成员共享的库存，请先导出备份；多人同时编辑同一条记录时会提示冲突。旋转只改变查看方向，纵列编号仍以原图从右向左为准。</p></div><div class="dialog-actions"><button class="button primary" data-close="info-dialog">知道了</button></div></dialog>
+  <dialog id="confirm-dialog"><div class="dialog-heading"><h2 id="confirm-title"></h2><button class="close-button" data-close="confirm-dialog" aria-label="关闭">×</button></div><p id="confirm-message" class="dialog-description"></p><p id="confirm-error" class="form-error" role="alert" hidden></p><div class="dialog-actions"><button class="button" data-close="confirm-dialog">取消</button><button class="button primary" id="confirm-action">确认</button></div></dialog>
+  <input type="file" id="import-file" accept=".json,application/json" hidden>
+  <script>/* INLINE_APP */</script>
+</body>
+</html>

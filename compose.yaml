@@ -1,0 +1,77 @@
+name: bestar-inventory
+
+x-app-environment: &app-environment
+  DATABASE_URL: postgresql://inventory:${POSTGRES_PASSWORD:?Run node scripts/docker-env.cjs first}@db:5432/inventory
+  APP_ORIGIN: ${APP_ORIGIN:-}
+  HOST: 0.0.0.0
+  PORT: 4173
+
+x-runtime: &runtime
+  image: bestar-inventory:local
+  build:
+    context: .
+    target: runtime
+  environment: *app-environment
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  db:
+    image: postgres:18-bookworm
+    environment:
+      POSTGRES_USER: inventory
+      POSTGRES_DB: inventory
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run node scripts/docker-env.cjs first}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+    shm_size: 128mb
+
+  migrate:
+    <<: *runtime
+    command: [node, scripts/migrate.cjs]
+    healthcheck:
+      disable: true
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+
+  app:
+    <<: *runtime
+    ports:
+      - '${BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-4173}:4173'
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  test:
+    profiles: [test]
+    build:
+      context: .
+      target: test
+    environment:
+      <<: *app-environment
+      DEPLOYMENT_TEST_URL: http://app:4173
+    depends_on:
+      app:
+        condition: service_healthy
+    init: true
+
+volumes:
+  postgres_data:
