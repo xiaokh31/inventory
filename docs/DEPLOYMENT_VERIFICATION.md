@@ -2,7 +2,18 @@
 
 日期：2026-10-02。本机验证环境：Windows Docker Desktop，Linux 容器；云端：Vercel + 独立 Neon PostgreSQL。
 
-## 已通过
+## 本次上下半区升级
+
+- A/B/C 共 45 列，按各区域中间立柱横线分为 90 个半区。上、下半区的托盘图形分别统计，旋转后方位定义不变。
+- Docker 测试容器：14 项模型/构建检查、5 项真实 PostgreSQL API 检查及运行中应用 HTTP 检查通过。覆盖半区边界、v4 备份、旧版本兼容、空 SKU/FBA、半区移库和并发冲突。
+- 浏览器访问 Docker 页面：B-03 上半区直接点击入库；SKU/FBA 留空保存成功；编辑为下半区；旋转 90° 后点击定位及台账显示正确。
+- 浏览器临时货物 `UI-HALF-CHECK-20261002` 已单独核对并删除；本机库存恢复为 0 条。接口测试仅创建并删除自己的唯一 ID，数据库测试仅使用随机隔离 schema。
+- 旧记录没有半区时保留为「未标注半区」，不默认分配上下区；编辑时再核对选择。JSONB 保存新增字段，无需修改表结构。
+- Vercel API 已确认 GitHub `xiaokh31/inventory` 连接，生产分支 `main`。生产发布由该分支推送触发，正式域名为 [inventory.bestarcca.com](https://inventory.bestarcca.com/)。
+- 升级前正式库已有 7 批业务库存。本次不批量导入、清空或改写已有记录；临时检查仅操作自身 ID。
+- 本次容器日志：`artifacts/docker-halves-test.log`。以下是较早的首次部署验证记录，其 0 条库存状态仅指当时。
+
+## 初始 Docker 部署检查（历史）
 
 - 多阶段 Docker 镜像构建；依赖安装、HTML 构建均在容器内进行。
 - Compose 从空命名卷启动 PostgreSQL 18，数据库健康后执行迁移，迁移成功后应用进入 healthy。
@@ -16,20 +27,20 @@
 - HTTPS 的 Compose 合并配置和 Caddyfile 校验通过，未启动公网代理或申请证书。
 - 宿主机旧 Node 预览与项目专用 PostgreSQL 已停止，旧 `.env` 和 `data/postgres` 文件保留。
 
-## 运行状态
+## Docker 运行状态
 
 - `app`：healthy，宿主机仅发布 `127.0.0.1:4173`。
 - `db`：healthy，5432 未发布到宿主机。
 - `migrate`：Exited (0)，正常完成初始化。
 - 数据卷：`bestar-inventory_postgres_data`。
 - 访问方式：公开读写，无需登录、口令或会话 Cookie。
-- 容器测试日志：`artifacts/docker-public-test.log` 为当前无口令版；`artifacts/docker-test.log` 为此前验证记录，不包含真实库存或秘密值。
+- 早期测试日志：`artifacts/docker-public-test.log`、`artifacts/docker-test.log`；最新半区版日志见上文。
 
 ## 未执行
 
-未对真实库存进行验收，也未启用自有服务器的 Caddy HTTPS 或自定义域名。Docker HTTPS 配置仅用于准备部署，实际启用需真实 DNS 和 80/443 端口条件。原图容量仍需现场核对。
+未对真实库存进行现场验收，也未启用自有服务器的 Caddy HTTPS。Docker HTTPS 配置仅用于准备部署，实际启用需真实 DNS 和 80/443 端口条件。Vercel 正式站点已使用自定义域名；原图容量仍需现场核对。
 
-## Vercel 生产发布
+## Vercel 首次生产发布（历史）
 
 - 正式站点：https://inventory-chi-mauve.vercel.app/，项目 `inventory`，团队 `bestars-projects-3a180eb8`。
 - 首次生产部署 `dpl_8vWy1wuyLySiqnsbx8tBDjLkz4RP` 状态 READY，两个 Node.js API 函数位于 `iad1`。
@@ -38,4 +49,4 @@
 - 在 Docker 中运行正式站点 HTTP 检查，使用同源 Origin：新增、双客户端读取、目的仓修改、移库、过期版本 409 和删除通过。
 - 测试仅使用 `deploy-smoke-vercel-20261002`，结束后删除。复查云端记录为 0，测试记录为 0，修订号为 3。
 - 浏览器直接进入工作台，显示「共享库存 · 已连接」，入库按钮可用；无登录弹窗。
-- GitHub `xiaokh31/inventory` 已推送 main。Vercel Git 自动连接缺少账号的 GitHub Login Connection，目前使用 CLI 发布。
+- 首次发布使用 CLI；其后 GitHub 登录连接已完成，当前 Git 自动部署状态见上文。

@@ -60,6 +60,9 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
 @media(max-width:760px){main{padding:22px 16px}.app-header{padding:0 16px}.heading-row{flex-direction:column;align-items:flex-start}.heading-actions{align-self:stretch;justify-content:flex-end}h1{font-size:23px}.header-title>span:last-child{display:none}.connection-label{font-size:10px}.theme-picker button{width:26px}.header-right{gap:8px}.stats-grid{grid-template-columns:repeat(2,1fr);gap:10px}.workspace{grid-template-columns:1fr}.map-stage{height:620px}.map-zoom{height:36px}.map-zoom button{width:33px;height:34px}.workspace-toolbar{align-items:stretch}.zone-tabs{width:100%}.search-group{width:100%}.map-footer{padding:13px}.map-rotation{right:17px;bottom:64px}.zone-overview{grid-template-columns:1fr}.dataset-bar{align-items:flex-start;gap:8px}.dataset-bar>div{gap:7px}.dataset-bar #mode-description{width:100%;padding-left:0;font-size:10px}.dataset-bar button{font-size:11px}.legacy-notice{flex-wrap:wrap}.page-footer{font-size:10px}.map-layer-controls{top:12px;right:12px}}
 @media(max-width:430px){.brand{padding:16px}.brand img{width:125px}.main-nav{padding-right:8px}.nav-tab{font-size:12px;padding:16px 11px}.header-title{font-size:12px;gap:7px}.header-right{display:flex}.connection-label{font-size:9px;gap:4px}.theme-picker button{width:22px}.map-stage{height:570px}.map-rotation{bottom:62px;right:12px}.map-zoom{right:12px}.map-scale{left:12px}.map-scale small{display:none}.map-top-actions .text-button{font-size:10px;padding:7px}.panel-heading{padding:15px 13px}.panel-heading h2{font-size:14px}.stat{padding:14px}.heading-actions{gap:6px}.heading-actions .button{font-size:11px;padding:8px 10px}.legend{gap:10px}.legend>span{font-size:10px}}
 @media print{.app-sidebar,.app-header,.map-rotation,.legacy-notice{display:none!important}main{margin:0;padding:0}.map-stage{height:900px}}
+
+/* Column halves keep their original-plan direction after rotation. */
+.lane.selected .lane-half:not(.selected) .lane-hit{fill:#f0f5f0;stroke:#dce6dd;stroke-width:1}.lane .lane-half:hover .lane-hit,.lane .lane-half:focus .lane-hit{fill:#dfefe6;stroke:#74a48a;stroke-width:1.8}.lane .lane-half.selected .lane-hit{fill:#e5f3ea;stroke:#0e7759;stroke-width:2.7}.lane-divider{stroke:#a4854e;stroke-width:1.3;stroke-dasharray:3 2}.unassigned-marker{font-size:12px;text-anchor:middle;fill:#9b6a18;paint-order:stroke;stroke:#fff;stroke-width:3;font-weight:800}.section-tabs{display:flex;flex-wrap:wrap;border:1px solid var(--border);margin:14px 0 18px;gap:1px;background:var(--border)}.section-tabs button{flex:1;min-width:50px;border:0;padding:9px 5px;background:var(--surface);color:var(--text-muted);font-size:11px}.section-tabs button small{display:block;font-size:9px;margin-top:4px}.section-tabs button[aria-pressed="true"]{background:var(--primary);color:var(--primary-foreground);font-weight:600}.section-notice{font-size:11px;line-height:1.7;padding:9px 10px;background:var(--warning-surface);color:var(--warning-text)}
 </style>
 </head>
 <body>
@@ -67,14 +70,14 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
     <a class="brand" href="#" aria-label="BESTAR 仓库首页"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOQAAAAyCAYAAABMMHe/AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAxRpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuNi1jMDY3IDc5LjE1Nzc0NywgMjAxNS8wMy8zMC0yMzo0MDo0MiAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6RTlCNzU2QTZFQzU2MTFGMEFGNUJDNDRBQTUzQUM1MTkiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6RTlCNzU2QTVFQzU2MTFGMEFGNUJDNDRBQTUzQUM1MTkiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENDIDIwMTUgV2luZG93cyI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJBNjU5MEU2MjhGNTI1MTVDOEY2NDJFQzEzMkFBQTlGQSIgc3RSZWY6ZG9jdW1lbnRJRD0iQTY1OTBFNjI4RjUyNTE1QzhGNjQyRUMxMzJBQUE5RkEiLz4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz6x2JT2AAAi5UlEQVR42uxdB3xVRdY/M/e+nuSlQ0ILQapS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" alt="BESTAR" width="182" height="40"><small>仓储运营工作台</small></a>
     <div class="sidebar-section">WAREHOUSE OPERATIONS</div>
     <nav class="main-nav" aria-label="主导航"><button class="nav-tab active" data-view="map"><span aria-hidden="true">▦</span> 仓库地图</button><button class="nav-tab" data-view="inventory"><span aria-hidden="true">▤</span> 库存台账</button></nav>
-    <div class="sidebar-foot"><span class="warehouse-code">UNIT 23</span><p>FBA · A / B / C 区</p><small>45 条纵列 · 12 个装卸口</small></div>
+    <div class="sidebar-foot"><span class="warehouse-code">UNIT 23</span><p>FBA · A / B / C 区</p><small>45 条纵列 · 90 个半区</small></div>
   </aside>
   <header class="app-header">
     <div class="header-title"><span class="header-marker"></span><strong>仓库运营</strong><span>/ 库存与定位</span></div>
     <div class="header-right"><span id="connection-label" class="connection-label" role="status">共享库存 · 连接中</span><div class="theme-picker" role="group" aria-label="界面主题"><button data-theme-choice="light" aria-label="浅色主题" title="浅色">☀</button><button data-theme-choice="dark" aria-label="深色主题" title="深色">☾</button><button data-theme-choice="system" aria-label="跟随系统主题" title="跟随系统">◐</button></div></div>
   </header>
   <main>
-    <div class="heading-row"><div><div class="eyebrow">UNIT 23 <span>/</span> INVENTORY & LOCATION</div><h1>仓库库存与货物定位<span class="site-tag">FBA</span></h1><p class="subtitle">共享库存实时核对，货物精确定位到整条纵列。</p></div><div class="heading-actions"><button class="button" id="import-button" disabled><span aria-hidden="true">↥</span> 导入数据</button><button class="button" id="export-button" disabled><span aria-hidden="true">↧</span> 导出备份</button><button class="button primary" id="add-button" disabled><span aria-hidden="true">＋</span> 货物入库</button></div></div>
+    <div class="heading-row"><div><div class="eyebrow">UNIT 23 <span>/</span> INVENTORY & LOCATION</div><h1>仓库库存与货物定位<span class="site-tag">FBA</span></h1><p class="subtitle">共享库存实时核对，货物定位到纵列及上、下半区。</p></div><div class="heading-actions"><button class="button" id="import-button" disabled><span aria-hidden="true">↥</span> 导入数据</button><button class="button" id="export-button" disabled><span aria-hidden="true">↧</span> 导出备份</button><button class="button primary" id="add-button" disabled><span aria-hidden="true">＋</span> 货物入库</button></div></div>
     <div class="dataset-bar"><div><span class="mode-dot"></span><strong id="mode-title">数据库共享库存</strong><span id="mode-description">正在连接…</span></div><button id="sync-button">↻ 立即同步</button></div>
     <div class="legacy-notice" id="legacy-notice" hidden><span id="legacy-description"></span><button id="legacy-import-button" class="button small" disabled>导入旧浏览器库存</button></div>
     <section class="stats-grid" aria-label="全仓库存概览">
@@ -87,7 +90,7 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
     <div id="search-summary" class="search-summary" hidden></div>
     <div class="workspace" id="map-view">
       <section class="map-panel" aria-label="仓库交互地图">
-        <div class="panel-heading"><div><h2>仓库平面图 <span class="small-tag">2D MAP</span></h2><p id="map-caption">FBA 作业区 · 点击纵列查看货物</p></div><div class="map-top-actions"><button id="overview-button" class="text-button">全仓总览</button><button id="fba-button" class="text-button active">FBA 作业区</button></div></div>
+        <div class="panel-heading"><div><h2>仓库平面图 <span class="small-tag">2D MAP</span></h2><p id="map-caption">立柱横线分上下半区 · 点击半区查看货物</p></div><div class="map-top-actions"><button id="overview-button" class="text-button">全仓总览</button><button id="fba-button" class="text-button active">FBA 作业区</button></div></div>
         <div class="map-stage" id="map-stage">
           <svg id="warehouse-map" viewBox="275 685 1080 1270" role="group" aria-label="仓库地图。A 区在下、B 区在中、C 区在上，办公室位于右下。可使用搜索或库存台账选择库位。">
             <defs><pattern id="canvas-grid" width="25" height="25" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.8" fill="#dbe3df"/></pattern><pattern id="blocked-pattern" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#9aa6a1" stroke-width="2"/></pattern></defs>
@@ -113,11 +116,11 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
     <footer class="page-footer"><span>BESTAR <span class="footer-divider">/</span> 仓储可视化工作台</span><span id="save-status">正在连接共享库存…</span></footer>
   </main>
   <div class="toast" id="toast" role="status" hidden></div>
-  <dialog id="editor-dialog"><form id="cargo-form"><div class="dialog-heading"><div><div class="eyebrow">INVENTORY RECORD</div><h2 id="editor-title">货物入库</h2></div><button type="button" class="close-button" data-close="editor-dialog" aria-label="关闭">×</button></div><p class="dialog-description" id="editor-description"></p><input type="hidden" id="edit-original"><div class="form-grid"><label>所在纵列<select id="cargo-location" required></select></label><label>状态<select id="cargo-status"><option value="stored">在库</option><option value="outbound">待出库</option><option value="reserved">预留</option></select></label><label>SKU<input id="cargo-sku" required maxlength="80" placeholder="例如：FBA-HOME-001"></label><label>商品名称<input id="cargo-name" required maxlength="100" placeholder="输入商品名称"></label><label>FBA 货件号<input id="cargo-shipment" maxlength="80" placeholder="例如：FBA18…"></label><label>货主<input id="cargo-owner" maxlength="80" placeholder="客户 / 货主名称"></label><label class="full">目的仓<input id="cargo-destination" maxlength="80" placeholder="例如：ONT8、LAX9 或目的仓名称"></label><label>箱数<input id="cargo-cartons" type="number" required min="1" max="1000000" step="1" value="1"></label><label>托盘数<input id="cargo-pallets" type="number" required min="1" max="10000" step="1" value="1"></label><label class="full">备注<textarea id="cargo-notes" rows="3" maxlength="500" placeholder="批次、收货情况或操作备注"></textarea></label></div><p id="form-error" class="form-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="button" data-close="editor-dialog">取消</button><button type="submit" class="button primary">保存货物</button></div></form></dialog>
-  <dialog id="info-dialog"><div class="dialog-heading"><div><div class="eyebrow">LAYOUT NOTES</div><h2>纵列编号与规划说明</h2></div><button class="close-button" data-close="info-dialog" aria-label="关闭">×</button></div><div class="info-content"><div class="code-example">A <span>－</span> 05</div><p><strong>A 区 · 从右向左第 05 纵列</strong></p><p>货物定位到整条纵列，同一列可记录多批货物。A、B、C 边界取自「区域说明」原图；货架区从原区域向左延伸至仓库左墙，图中的托盘图形仅表示数量，不代表逐托的实际位置。</p><ul><li>横向柱距按 7.5 × 1.6 = 12 米标定，两跨约 15 列；托盘长边 1.2 米沿图纸竖向。</li><li>每列建议容量按纵深 / 1.2 米估算，并扣除与柱位相交的托盘示意格，未计额外作业间隙。容量须现场复核，不作实际库容承诺。</li><li>按原图方点保留承重柱，柱边预留约 0.3 米示意距离；图中托盘避开柱位。实际柱体及安全距离须现场复核。</li><li>A/B/C 之间保留叉车道；货架区、办公室、右侧作业通道不分配 FBA 地面库位。</li><li>右侧 dock 自下向上为 23–34；12′w × 14′h 出入口及 drive-in 单独标识，不计入 dock。</li><li>同一纵列的混 SKU、多货件分开登记。超过建议容量会提示，但保留实际登记数量。</li></ul><p class="note-box">库存保存于共享数据库，每 5 秒自动同步，也可手动同步。导入会替换所有成员共享的库存，请先导出备份；多人同时编辑同一条记录时会提示冲突。旋转只改变查看方向，纵列编号仍以原图从右向左为准。</p></div><div class="dialog-actions"><button class="button primary" data-close="info-dialog">知道了</button></div></dialog>
+  <dialog id="editor-dialog"><form id="cargo-form"><div class="dialog-heading"><div><div class="eyebrow">INVENTORY RECORD</div><h2 id="editor-title">货物入库</h2></div><button type="button" class="close-button" data-close="editor-dialog" aria-label="关闭">×</button></div><p class="dialog-description" id="editor-description"></p><input type="hidden" id="edit-original"><div class="form-grid"><label>所在纵列<select id="cargo-location" required></select></label><label>所在半区<select id="cargo-section" required><option value="" disabled selected>请选择上半区或下半区</option><option value="upper">上半区（原图立柱上方）</option><option value="lower">下半区（原图立柱下方）</option></select></label><label>状态<select id="cargo-status"><option value="stored">在库</option><option value="outbound">待出库</option><option value="reserved">预留</option></select></label><label>SKU（选填）<input id="cargo-sku" maxlength="80" placeholder="例如：FBA-HOME-001"></label><label>商品名称<input id="cargo-name" required maxlength="100" placeholder="输入商品名称"></label><label>FBA 货件号（选填）<input id="cargo-shipment" maxlength="80" placeholder="例如：FBA18…"></label><label>货主<input id="cargo-owner" maxlength="80" placeholder="客户 / 货主名称"></label><label class="full">目的仓<input id="cargo-destination" maxlength="80" placeholder="例如：ONT8、LAX9 或目的仓名称"></label><label>箱数<input id="cargo-cartons" type="number" required min="1" max="1000000" step="1" value="1"></label><label>托盘数<input id="cargo-pallets" type="number" required min="1" max="10000" step="1" value="1"></label><label class="full">备注<textarea id="cargo-notes" rows="3" maxlength="500" placeholder="批次、收货情况或操作备注"></textarea></label></div><p id="form-error" class="form-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="button" data-close="editor-dialog">取消</button><button type="submit" class="button primary">保存货物</button></div></form></dialog>
+  <dialog id="info-dialog"><div class="dialog-heading"><div><div class="eyebrow">LAYOUT NOTES</div><h2>纵列编号与规划说明</h2></div><button class="close-button" data-close="info-dialog" aria-label="关闭">×</button></div><div class="info-content"><div class="code-example">A <span>－</span> 05</div><p><strong>A 区 · 从右向左第 05 纵列</strong></p><p>货物定位到整条纵列，同一列可记录多批货物。A、B、C 边界取自「区域说明」原图；货架区从原区域向左延伸至仓库左墙，图中的托盘图形仅表示数量，不代表逐托的实际位置。</p><ul><li>横向柱距按 7.5 × 1.6 = 12 米标定，两跨约 15 列；托盘长边 1.2 米沿图纸竖向。</li><li>每列建议容量按纵深 / 1.2 米估算，并扣除与柱位相交的托盘示意格，未计额外作业间隙。容量须现场复核，不作实际库容承诺。</li><li>按原图方点保留承重柱，柱边预留约 0.3 米示意距离；图中托盘避开柱位。实际柱体及安全距离须现场复核。</li><li>A/B/C 之间保留叉车道；货架区、办公室、右侧作业通道不分配 FBA 地面库位。</li><li>右侧 dock 自下向上为 23–34；12′w × 14′h 出入口及 drive-in 单独标识，不计入 dock。</li><li>每条纵列以立柱横线分为上半区和下半区，入库时选择；SKU 和 FBA 货件号均为选填。同一纵列的混 SKU、多货件分开登记。超过建议容量会提示，但保留实际登记数量。</li></ul><p class="note-box">库存保存于共享数据库，每 5 秒自动同步，也可手动同步。导入会替换所有成员共享的库存，请先导出备份；多人同时编辑同一条记录时会提示冲突。旋转只改变查看方向，纵列编号仍以原图从右向左为准，上下半区也以原图为准。</p></div><div class="dialog-actions"><button class="button primary" data-close="info-dialog">知道了</button></div></dialog>
   <dialog id="confirm-dialog"><div class="dialog-heading"><h2 id="confirm-title"></h2><button class="close-button" data-close="confirm-dialog" aria-label="关闭">×</button></div><p id="confirm-message" class="dialog-description"></p><p id="confirm-error" class="form-error" role="alert" hidden></p><div class="dialog-actions"><button class="button" data-close="confirm-dialog">取消</button><button class="button primary" id="confirm-action">确认</button></div></dialog>
   <input type="file" id="import-file" accept=".json,application/json" hidden>
-  <script>/* BESTAR warehouse: source-image coordinates, inventory located by whole lane. */
+  <script>/* BESTAR warehouse: source-image coordinates, inventory located by lane and half. */
 (function () {
   'use strict';
   const PX_PER_M = 201 / 12;
@@ -131,16 +134,25 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
   ];
   const COLUMN_X = [6, 208, 409, 610, 811, 1012, 1207];
   const COLUMN_Y = [284, 561, 837, 1114, 1391, 1667];
+  const SECTIONS = { upper: '上半区', lower: '下半区', unspecified: '未标注半区' };
+  const sectionOf = record => record.section || 'unspecified';
+  const locationLabel = record => `${record.location} · ${SECTIONS[sectionOf(record)]}`;
   const COLUMNS = COLUMN_Y.flatMap(y => COLUMN_X.map(x => ({ x, y })));
   const DOCKS = Array.from({ length: 12 }, (_, i) => ({ number: 23 + i, x: 1160, y: 1321 - i * 92.2, width: 50, height: 45 }));
   const intersects = (a, b) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
   function createLanes() {
     return ZONES.flatMap(zone => Array.from({ length: 15 }, (_, index) => {
       const lane = { id: `${zone.id}-${String(index + 1).padStart(2, '0')}`, zone: zone.id, number: index + 1, x: zone.x + (14 - index) * LANE_WIDTH, y: zone.y, width: LANE_WIDTH, height: zone.height };
-      const rows = Math.floor(zone.height / PALLET_DEPTH);
-      const padding = (zone.height - rows * PALLET_DEPTH) / 2;
-      lane.positions = Array.from({ length: rows }, (_, row) => ({ x: lane.x + (LANE_WIDTH - PALLET_WIDTH) / 2, y: zone.y + zone.height - padding - (row + 1) * PALLET_DEPTH, width: PALLET_WIDTH, height: PALLET_DEPTH }))
-        .filter(pallet => !COLUMNS.some(column => intersects(pallet, { x: column.x - 5, y: column.y - 5, width: 10, height: 10 })));
+      lane.splitY = COLUMN_Y.find(y => y > zone.y && y < zone.y + zone.height);
+      lane.sections = Object.fromEntries(['upper', 'lower'].map(section => {
+        const y = section === 'upper' ? zone.y : lane.splitY;
+        const height = section === 'upper' ? lane.splitY - zone.y : zone.y + zone.height - lane.splitY;
+        const rows = Math.floor(height / PALLET_DEPTH), padding = (height - rows * PALLET_DEPTH) / 2;
+        const positions = Array.from({ length: rows }, (_, row) => ({ section, x: lane.x + (LANE_WIDTH - PALLET_WIDTH) / 2, y: y + height - padding - (row + 1) * PALLET_DEPTH, width: PALLET_WIDTH, height: PALLET_DEPTH }))
+          .filter(pallet => !COLUMNS.some(column => intersects(pallet, { x: column.x - 5, y: column.y - 5, width: 10, height: 10 })));
+        return [section, { y, height, positions, capacity: positions.length }];
+      }));
+      lane.positions = ['lower', 'upper'].flatMap(section => lane.sections[section].positions);
       lane.capacity = lane.positions.length;
       return lane;
     }));
@@ -156,7 +168,9 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
       if (!record || typeof record !== 'object' || Array.isArray(record)) fail('记录格式不正确。');
       if (!Object.hasOwn(LANE_BY_ID, record.location)) fail('纵列编号不存在，请使用 A-01 至 C-15。');
       if (!['stored', 'outbound', 'reserved'].includes(record.status)) fail('状态应为 stored、outbound 或 reserved。');
-      for (const [field, limit, required] of [['id', 100, true], ['sku', 80, true], ['name', 100, true], ['shipment', 80, false], ['owner', 80, false], ['notes', 500, false]]) {
+      record = { ...record, sku: record.sku === undefined ? '' : record.sku, shipment: record.shipment === undefined ? '' : record.shipment, section: record.section === undefined ? 'unspecified' : record.section };
+      if (typeof record.section !== 'string' || !Object.hasOwn(SECTIONS, record.section)) fail('半区应为 upper、lower 或 unspecified。');
+      for (const [field, limit, required] of [['id', 100, true], ['sku', 80, false], ['name', 100, true], ['shipment', 80, false], ['owner', 80, false], ['notes', 500, false]]) {
         if (typeof record[field] !== 'string' || record[field].length > limit || (required && !record[field].trim())) fail(`${field} 格式或长度不正确。`);
       }
       const destination = record.destination === undefined ? '' : record.destination;
@@ -166,7 +180,7 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
       if (!Number.isSafeInteger(record.pallets) || record.pallets < 1 || record.pallets > 10000) fail('托盘数必须是 1–10,000 的整数。');
       if (!Number.isSafeInteger(record.cartons) || record.cartons < 1 || record.cartons > 1000000) fail('箱数必须是 1–1,000,000 的整数。');
       if (typeof record.updatedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(record.updatedAt) || !Number.isFinite(Date.parse(record.updatedAt))) fail('更新时间不是有效的 ISO 日期。');
-      return { id: record.id, location: record.location, sku: record.sku.trim(), name: record.name.trim(), shipment: record.shipment.trim(), owner: record.owner.trim(), destination: destination.trim(), cartons: record.cartons, pallets: record.pallets, status: record.status, notes: record.notes.trim(), updatedAt: record.updatedAt };
+      return { id: record.id, location: record.location, section: record.section, sku: record.sku.trim(), name: record.name.trim(), shipment: record.shipment.trim(), owner: record.owner.trim(), destination: destination.trim(), cartons: record.cartons, pallets: record.pallets, status: record.status, notes: record.notes.trim(), updatedAt: record.updatedAt };
     });
   }
   function renumberLegacyRecords(records) {
@@ -176,13 +190,13 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
   function parseBackup(text) {
     let data;
     try { data = JSON.parse(text); } catch { throw new Error('文件不是有效的 JSON。'); }
-    if (!data || data.format !== 'bestar-warehouse-lanes' || ![1, 2, 3].includes(data.version)) throw new Error('请选择此页面导出的纵列库存备份（version 1、2 或 3）。');
+    if (!data || data.format !== 'bestar-warehouse-lanes' || ![1, 2, 3, 4].includes(data.version)) throw new Error('请选择此页面导出的库存备份（version 1 至 4）。');
     const records = validateRecords(data.records);
     return { records: data.version < 3 ? renumberLegacyRecords(records) : records, mode: data.mode === 'demo' ? 'demo' : 'local', renumbered: data.version < 3 };
   }
   function queryRecords(records, zone = 'all', status = 'all', query = '') {
     const term = query.trim().toLocaleLowerCase();
-    return records.filter(record => (zone === 'all' || record.location.startsWith(zone + '-')) && (status === 'all' || status === record.status) && (!term || [record.location, record.sku, record.name, record.shipment, record.owner, record.destination || ''].some(value => value.toLocaleLowerCase().includes(term))));
+    return records.filter(record => (zone === 'all' || record.location.startsWith(zone + '-')) && (status === 'all' || status === record.status) && (!term || [record.location, locationLabel(record), record.sku || '', record.name, record.shipment || '', record.owner, record.destination || ''].some(value => value.toLocaleLowerCase().includes(term))));
   }
   function summaries(records) {
     const occupied = new Set(records.map(record => record.location)).size;
@@ -209,7 +223,7 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
     const x = Math.min(...points.map(p => p.x)), y = Math.min(...points.map(p => p.y));
     return { x, y, w: Math.max(...points.map(p => p.x)) - x, h: Math.max(...points.map(p => p.y)) - y };
   }
-  const model = { PX_PER_M, LANE_WIDTH, PALLET_WIDTH, PALLET_DEPTH, ZONES, COLUMNS, DOCKS, LANES, LANE_BY_ID, STATUS, intersects, validateRecords, parseBackup, queryRecords, summaries, csvCell, loadInventory, rotatePoint, rotateBounds };
+  const model = { PX_PER_M, LANE_WIDTH, PALLET_WIDTH, PALLET_DEPTH, ZONES, COLUMNS, DOCKS, LANES, LANE_BY_ID, STATUS, SECTIONS, sectionOf, locationLabel, intersects, validateRecords, parseBackup, queryRecords, summaries, csvCell, loadInventory, rotatePoint, rotateBounds };
   if (typeof module !== 'undefined' && module.exports) module.exports = model;
   if (typeof document === 'undefined') return;
 
@@ -217,7 +231,7 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
   const esc = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const fmt = value => value.toLocaleString('zh-CN');
   const NS = 'http://www.w3.org/2000/svg';
-  const state = { records: [], versions: {}, revision: -1, loaded: false, online: false, rotation: 0, selected: 'A-01', dock: null, zone: 'all', status: 'all', query: '', view: 'map', page: 0, extent: 'fba', viewport: { x: -35, y: 685, w: 1390, h: 1270 } };
+  const state = { records: [], versions: {}, revision: -1, loaded: false, online: false, rotation: 0, selected: 'A-01', selectedSection: null, dock: null, zone: 'all', status: 'all', query: '', view: 'map', page: 0, extent: 'fba', viewport: { x: -35, y: 685, w: 1390, h: 1270 } };
   let toastTimer;
   function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 4800); }
   let syncPending = false;
@@ -297,6 +311,9 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
       add(layer, 'rect', { x: zone.x - 2, y: zone.y - 2, width: zone.width + 4, height: zone.height + 4, fill: '#f7faf6', stroke: '#bccfc1', 'stroke-width': 1.4 });
       add(layer, 'text', { x: 1055, y: zone.y + zone.height / 2, 'text-anchor': 'middle', class: 'structure-text', 'font-size': 30, fill: '#59866e' }, zone.id);
       add(layer, 'text', { x: 1055, y: zone.y + zone.height / 2 + 23, 'text-anchor': 'middle', class: 'structure-text', 'font-size': 10 }, 'FBA 区');
+      const splitY = LANE_BY_ID[zone.id + '-01'].splitY;
+      add(layer, 'text', { x: 1055, y: (zone.y + splitY) / 2, 'text-anchor': 'middle', class: 'half-direction', 'font-size': 10, fill: '#647b6c' }, '上半区');
+      add(layer, 'text', { x: 1055, y: (splitY + zone.y + zone.height) / 2, 'text-anchor': 'middle', class: 'half-direction', 'font-size': 10, fill: '#647b6c' }, '下半区');
     }
     for (const y of [978, 1262]) {
       add(layer, 'path', { d: `M642 ${y} H736 M897 ${y} H982`, stroke: '#d4ddd3', 'stroke-width': 1.4, 'stroke-dasharray': '5 5' });
@@ -351,19 +368,27 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
     for (const lane of LANES) {
       const records = recordsIn(lane.id);
       const selected = state.selected === lane.id && !state.dock;
-      const g = add(layer, 'g', { class: `lane${selected ? ' selected' : ''}${matches.has(lane.id) ? '' : ' dimmed'}`, 'data-location': lane.id, role: 'button', tabindex: 0, 'aria-label': `${lane.id} 纵列，${records.reduce((n, r) => n + r.pallets, 0)} 托盘，${records.length} 批货物`, 'aria-pressed': selected });
-      add(g, 'rect', { x: lane.x + 1.5, y: lane.y, width: lane.width - 3, height: lane.height, rx: 1.6, class: 'lane-hit' });
-      const statuses = [];
-      for (const record of records) {
-        const count = Math.min(record.pallets, lane.capacity - statuses.length);
-        for (let i = 0; i < count; i++) statuses.push(record.status);
+      const g = add(layer, 'g', { class: `lane${selected ? ' selected' : ''}${matches.has(lane.id) ? '' : ' dimmed'}`, role: 'group', 'aria-label': `${lane.id} 纵列` });
+      for (const section of ['upper', 'lower']) {
+        const area = lane.sections[section], halfRecords = records.filter(record => sectionOf(record) === section);
+        const active = selected && (!state.selectedSection || state.selectedSection === section);
+        const half = add(g, 'g', { class: `lane-half${active ? ' selected' : ''}`, 'data-location': lane.id, 'data-section': section, role: 'button', tabindex: 0, 'aria-label': `${lane.id} ${SECTIONS[section]}，${halfRecords.reduce((n, r) => n + r.pallets, 0)} 托盘，${halfRecords.length} 批货物`, 'aria-pressed': active });
+        add(half, 'rect', { x: lane.x + 1.5, y: area.y + 1.5, width: lane.width - 3, height: area.height - 3, rx: 1.6, class: 'lane-hit' });
+        const statuses = [];
+        for (const record of halfRecords) {
+          const count = Math.min(record.pallets, area.capacity - statuses.length);
+          for (let i = 0; i < count; i++) statuses.push(record.status);
+        }
+        area.positions.forEach((position, index) => {
+          const status = statuses[index] || 'empty';
+          const rect = { x: position.x + .4, y: position.y + .7, width: position.width - .8, height: position.height - 1.4 };
+          add(half, 'rect', { ...rect, rx: 1, class: `pallet-${status}`, 'pointer-events': 'none' });
+          if (status !== 'empty') for (const fraction of [.33, .66]) add(half, 'line', { x1: rect.x + 2, y1: rect.y + rect.height * fraction, x2: rect.x + rect.width - 2, y2: rect.y + rect.height * fraction, class: 'pallet-slat' });
+        });
+        add(half, 'title', {}, `${lane.id} · ${SECTIONS[section]} · ${halfRecords.length} 批货物`);
       }
-      lane.positions.forEach((position, index) => {
-        const status = statuses[index] || 'empty';
-        const rect = { x: position.x + .4, y: position.y + .7, width: position.width - .8, height: position.height - 1.4 };
-        add(g, 'rect', { ...rect, rx: 1, class: `pallet-${status}`, 'pointer-events': 'none' });
-        if (status !== 'empty') for (const fraction of [.33, .66]) add(g, 'line', { x1: rect.x + 2, y1: rect.y + rect.height * fraction, x2: rect.x + rect.width - 2, y2: rect.y + rect.height * fraction, class: 'pallet-slat' });
-      });
+      add(g, 'line', { x1: lane.x, y1: lane.splitY, x2: lane.x + lane.width, y2: lane.splitY, class: 'lane-divider', 'pointer-events': 'none' });
+      if (records.some(record => sectionOf(record) === 'unspecified')) add(g, 'text', { x: lane.x + lane.width / 2, y: lane.splitY + 4, class: 'unassigned-marker', 'pointer-events': 'none' }, '?');
       for (const column of COLUMNS) {
         if (intersects(lane, { x: column.x - 5, y: column.y - 5, width: 10, height: 10 })) add(g, 'rect', { x: Math.max(lane.x + 2, column.x - 6), y: column.y - 7, width: Math.min(lane.width - 4, 12), height: 14, fill: 'url(#blocked-pattern)', opacity: .55, 'pointer-events': 'none' });
       }
@@ -393,20 +418,29 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
       return `<button class="zone-card" data-zone="${zone.id}"><span class="zone-letter">${zone.id}</span><span class="zone-card-body"><span class="zone-card-title">${zone.id} 区<span>${occupied} / 15 列已用</span></span><span class="zone-card-bar"><i style="width:${occupied / 15 * 100}%"></i></span><span class="zone-card-bottom"><span>${records.reduce((n, r) => n + r.pallets, 0)} 托盘 · ${records.length} 批货物</span><span>${15 - occupied} 列空闲</span></span></span><span class="zone-card-arrow">↗</span></button>`;
     }).join('');
   }
+  function cargoCard(record) {
+    return `<article class="cargo-card"><div class="cargo-card-top"><h3>${esc(record.name)}</h3><span class="badge ${record.status}">${STATUS[record.status]}</span></div><p class="cargo-sku">${esc(record.sku || 'SKU 未填写')}</p><div class="cargo-field"><span>所在半区</span><strong>${SECTIONS[sectionOf(record)]}</strong></div><div class="cargo-field"><span>货件号</span><strong>${esc(record.shipment || '—')}</strong></div><div class="cargo-field"><span>目的仓</span><strong>${esc(record.destination || '未填写')}</strong></div><div class="cargo-field"><span>货主</span><strong>${esc(record.owner || '—')}</strong></div><div class="cargo-field"><span>数量</span><strong>${fmt(record.pallets)} 托 / ${fmt(record.cartons)} 箱</strong></div>${record.notes ? `<p class="cargo-notes">${esc(record.notes)}</p>` : ''}<div class="cargo-card-actions"><button data-edit="${esc(record.id)}">编辑 / 移库 ↗</button><button class="remove-cargo" data-remove="${esc(record.id)}">移出此批</button></div></article>`;
+  }
   function renderDetail() {
     if (state.dock) {
       $('detail-content').innerHTML = `<div class="detail-location-heading"><h2>Dock ${state.dock}</h2><span class="badge empty">装卸口</span></div><p class="detail-subtitle">仓库右侧 · 编号由下向上递增</p><div class="dock-detail">门洞：9′w × 10′h<br>共 12 个 dock：23–34<br><br>12′w × 14′h 仓库进出门与 drive-in 独立标记，不占用 dock 编号。</div><button class="button detail-primary" id="return-lane">返回纵列详情</button>`;
       $('return-lane').onclick = () => { state.dock = null; render(); };
       return;
     }
-    const lane = LANE_BY_ID[state.selected];
-    const records = recordsIn(lane.id);
-    const pallets = records.reduce((n, r) => n + r.pallets, 0);
-    const cartons = records.reduce((n, r) => n + r.cartons, 0);
-    const status = laneStatus(records);
-    $('detail-content').innerHTML = `<div class="detail-location-heading"><h2>${lane.id}</h2><span class="badge ${status}">${records.length ? records.length + ' 批货物' : '空闲纵列'}</span></div><p class="detail-subtitle">${lane.zone} 区 · 从右向左第 ${String(lane.number).padStart(2, '0')} 列<br>宽 1.6 m · 货物沿图纸竖向摆放</p><div class="location-mini" aria-label="当前纵列在区域中的位置">${Array.from({ length: 15 }, (_, i) => `<span class="mini-lane${15 - i === lane.number ? ' selected' : ''}"></span>`).join('')}<span class="mini-label">${lane.zone} 区 / 15 列</span></div><div class="detail-metrics"><div><small>托盘总数</small><strong>${fmt(pallets)}<span>托</span></strong></div><div><small>库存箱数</small><strong>${fmt(cartons)}<span>箱</span></strong></div></div><div class="cargo-heading">列内货物<span>${records.length} 批记录</span></div><div class="cargo-list">${records.length ? records.map(record => `<article class="cargo-card"><div class="cargo-card-top"><h3>${esc(record.name)}</h3><span class="badge ${record.status}">${STATUS[record.status]}</span></div><p class="cargo-sku">${esc(record.sku)}</p><div class="cargo-field"><span>货件号</span><strong>${esc(record.shipment || '—')}</strong></div><div class="cargo-field"><span>目的仓</span><strong>${esc(record.destination || '未填写')}</strong></div><div class="cargo-field"><span>货主</span><strong>${esc(record.owner || '—')}</strong></div><div class="cargo-field"><span>数量</span><strong>${fmt(record.pallets)} 托 / ${fmt(record.cartons)} 箱</strong></div>${record.notes ? `<p class="cargo-notes">${esc(record.notes)}</p>` : ''}<div class="cargo-card-actions"><button data-edit="${esc(record.id)}">编辑 / 移库 ↗</button><button class="remove-cargo" data-remove="${esc(record.id)}">移出此批</button></div></article>`).join('') : '<div class="empty-detail">此列暂无货物<br>可登记新到货物或安排移库</div>'}</div><button class="button primary detail-primary" id="add-to-lane">＋ 向此列登记货物</button><p class="capacity-note${pallets > lane.capacity ? ' warning' : ''}">${pallets > lane.capacity ? '⚠ 已超出建议容量。' : ''}图纸估算约 ${lane.capacity} 托 / 列，已避开柱位。<br>托盘图形仅示意数量，不代表逐托位置。</p>`;
+    const lane = LANE_BY_ID[state.selected], allRecords = recordsIn(lane.id);
+    const records = state.selectedSection ? allRecords.filter(record => sectionOf(record) === state.selectedSection) : allRecords;
+    const pallets = records.reduce((n, r) => n + r.pallets, 0), cartons = records.reduce((n, r) => n + r.cartons, 0);
+    const status = laneStatus(records), sectionName = SECTIONS[state.selectedSection] || '整条纵列';
+    const filters = [[null, '整列'], ['upper', '上半区'], ['lower', '下半区']];
+    if (allRecords.some(record => sectionOf(record) === 'unspecified') || state.selectedSection === 'unspecified') filters.push(['unspecified', '未标注']);
+    const tabs = filters.map(([section, label]) => `<button data-section-filter="${section || ''}" aria-pressed="${state.selectedSection === section}">${label}<small>${(section ? allRecords.filter(r => sectionOf(r) === section) : allRecords).length} 批</small></button>`).join('');
+    const capacity = lane.sections[state.selectedSection]?.capacity ?? lane.capacity;
+    const overCapacity = state.selectedSection ? state.selectedSection !== 'unspecified' && pallets > capacity : ['upper', 'lower'].some(section => allRecords.filter(r => sectionOf(r) === section).reduce((n, r) => n + r.pallets, 0) > lane.sections[section].capacity) || pallets > capacity;
+    const unknownCount = allRecords.filter(r => sectionOf(r) === 'unspecified').length;
+    $('detail-content').innerHTML = `<div class="detail-location-heading"><h2>${lane.id}</h2><span class="badge ${status}">${sectionName}</span></div><p class="detail-subtitle">${lane.zone} 区 · 从右向左第 ${String(lane.number).padStart(2, '0')} 列<br>宽 1.6 m · 上下以原图立柱横线为界</p><div class="section-tabs" role="group" aria-label="所在纵列半区">${tabs}</div>${unknownCount ? `<p class="section-notice">${unknownCount} 批旧货物未标注半区，请编辑核对；地图以 ? 标记。</p>` : ''}<div class="detail-metrics"><div><small>${sectionName}托盘</small><strong>${fmt(pallets)}<span>托</span></strong></div><div><small>库存箱数</small><strong>${fmt(cartons)}<span>箱</span></strong></div></div><div class="cargo-heading">${sectionName}货物<span>${records.length} 批记录</span></div><div class="cargo-list">${records.length ? records.map(cargoCard).join('') : '<div class="empty-detail">暂无货物<br>可登记新到货物或安排移库</div>'}</div><button class="button primary detail-primary" id="add-to-lane">＋ 向${['upper', 'lower'].includes(state.selectedSection) ? sectionName : '此列'}登记货物</button><p class="capacity-note${overCapacity ? ' warning' : ''}">${overCapacity ? '⚠ 已超出建议容量，请现场核对。<br>' : ''}图纸估算：上半区 ${lane.sections.upper.capacity} 托，下半区 ${lane.sections.lower.capacity} 托。<br>旋转不改变上下方位；未标注货物不分配托盘图形。</p>`;
     $('add-to-lane').onclick = () => openEditor(null, lane.id);
   }
+
   function tableItems() {
     if (state.status === 'empty') return matchingLanes().map(lane => ({ location: lane.id, empty: true }));
     return queryRecords(state.records, state.zone, state.status, state.query);
@@ -416,7 +450,7 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
     state.page = Math.min(state.page, Math.max(0, Math.ceil(items.length / 15) - 1));
     const start = state.page * 15;
     $('table-caption').textContent = `${state.status === 'empty' ? '空闲纵列' : '按货物批次列出'} · 当前筛选 ${items.length} 条`;
-    $('inventory-body').innerHTML = items.slice(start, start + 15).map(r => r.empty ? `<tr><td><button class="location-link" data-locate="${r.location}">${r.location}</button></td><td colspan="5">暂无货物</td><td><span class="badge empty">空闲</span></td><td>—</td><td><button class="table-edit" data-add="${r.location}">登记货物</button></td></tr>` : `<tr><td><button class="location-link" data-locate="${r.location}">${r.location} ↗</button></td><td>${esc(r.sku)}<small>${esc(r.name)} · ${r.pallets} 托</small></td><td>${esc(r.shipment || '—')}</td><td>${esc(r.owner || '—')}</td><td>${esc(r.destination || '未填写')}</td><td>${fmt(r.cartons)}</td><td><span class="badge ${r.status}">${STATUS[r.status]}</span></td><td>${new Date(r.updatedAt).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' })}</td><td><button class="table-edit" data-edit="${esc(r.id)}">编辑</button></td></tr>`).join('') || '<tr><td colspan="9" class="table-empty">没有符合条件的货物或纵列</td></tr>';
+    $('inventory-body').innerHTML = items.slice(start, start + 15).map(r => r.empty ? `<tr><td><button class="location-link" data-locate="${r.location}">${r.location}</button></td><td colspan="5">暂无货物</td><td><span class="badge empty">空闲</span></td><td>—</td><td><button class="table-edit" data-add="${r.location}">登记货物</button></td></tr>` : `<tr><td><button class="location-link" data-locate="${r.location}" data-section="${sectionOf(r)}">${locationLabel(r)} ↗</button></td><td>${esc(r.sku || "—")}<small>${esc(r.name)} · ${r.pallets} 托</small></td><td>${esc(r.shipment || '—')}</td><td>${esc(r.owner || '—')}</td><td>${esc(r.destination || '未填写')}</td><td>${fmt(r.cartons)}</td><td><span class="badge ${r.status}">${STATUS[r.status]}</span></td><td>${new Date(r.updatedAt).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' })}</td><td><button class="table-edit" data-edit="${esc(r.id)}">编辑</button></td></tr>`).join('') || '<tr><td colspan="9" class="table-empty">没有符合条件的货物或纵列</td></tr>';
     $('pagination-info').textContent = items.length ? `${start + 1}–${Math.min(start + 15, items.length)} / 共 ${items.length} 条` : '共 0 条';
     $('prev-page').disabled = state.page === 0;
     $('next-page').disabled = start + 15 >= items.length;
@@ -450,7 +484,7 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
     state.viewport = rotateBounds(extent === 'overview' ? { x: -90, y: -75, w: 1540, h: 2110 } : { x: -35, y: 685, w: 1390, h: 1270 }, state.rotation);
     $('overview-button').classList.toggle('active', extent === 'overview');
     $('fba-button').classList.toggle('active', extent === 'fba');
-    $('map-caption').textContent = extent === 'overview' ? '全仓总览 · 右侧 12 个 dock：由下向上 23–34' : 'FBA 作业区 · 点击纵列查看货物';
+    $('map-caption').textContent = extent === 'overview' ? '全仓总览 · 右侧 12 个 dock：由下向上 23–34' : '立柱横线分上下半区 · 点击半区查看货物';
     updateViewport();
   }
   function updateViewport() {
@@ -496,25 +530,26 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
     $('orientation-arrow').style.transform = `rotate(${state.rotation}deg)`;
     $('map-tooltip').hidden = true; orientLabels(); updateViewport();
   }
-  function selectLane(id, focus = false) {
+  function selectLane(id, focus = false, section = null) {
     if (!LANE_BY_ID[id]) return;
-    state.selected = id; state.dock = null; setView('map');
+    state.selected = id; state.selectedSection = Object.hasOwn(SECTIONS, section) ? section : null; state.dock = null; setView('map');
     if (focus) focusZone(LANE_BY_ID[id].zone);
     render();
     if (focus) $('map-view').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
   }
   let editorVersion = 0;
-  function openEditor(recordId = null, location = state.selected) {
+  function openEditor(recordId = null, location = state.selected, section = location === state.selected ? state.selectedSection : null) {
     if (!state.online) { toast('数据库未连接，请先同步。'); return; }
     const record = recordId ? state.records.find(r => r.id === recordId) : null;
     if (recordId && !record) { toast('此批货物已被移出，请查看最新库存。'); return; }
     editorVersion = record ? state.versions[record.id] : 0;
     $('cargo-form').reset(); $('form-error').hidden = true;
     $('editor-title').textContent = record ? '编辑货物 / 移库' : '货物入库';
-    $('editor-description').textContent = '填写货物目的仓；修改所在纵列即可移库，同一列可登记多批货物。';
+    $('editor-description').textContent = '以原图立柱横线为界选择上半区或下半区；旋转不改变方位。修改纵列或半区即可移库。';
     $('edit-original').value = record?.id || '';
     $('cargo-location').innerHTML = LANES.map(lane => `<option value="${lane.id}">${lane.id} · 已登记 ${recordsIn(lane.id).reduce((n, r) => n + r.pallets, 0)} 托</option>`).join('');
     $('cargo-location').value = record?.location || location || 'A-01';
+    $('cargo-section').value = record ? sectionOf(record) === 'unspecified' ? '' : record.section : ['upper', 'lower'].includes(section) ? section : '';
     for (const field of ['sku', 'name', 'shipment', 'owner', 'destination', 'notes']) $('cargo-' + field).value = record?.[field] || '';
     $('cargo-cartons').value = record?.cartons || 1;
     $('cargo-pallets').value = record?.pallets || 1;
@@ -541,12 +576,12 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
     try {
       const id = $('edit-original').value || (globalThis.crypto?.randomUUID?.() || `cargo-${Date.now()}-${Math.random().toString(36).slice(2)}`);
       $('edit-original').value = id;
-      const record = { id, location: $('cargo-location').value, status: $('cargo-status').value, cartons: Number($('cargo-cartons').value), pallets: Number($('cargo-pallets').value), updatedAt: new Date().toISOString() };
+      const record = { id, location: $('cargo-location').value, section: $('cargo-section').value, status: $('cargo-status').value, cartons: Number($('cargo-cartons').value), pallets: Number($('cargo-pallets').value), updatedAt: new Date().toISOString() };
       for (const field of ['sku', 'name', 'shipment', 'owner', 'destination', 'notes']) record[field] = $('cargo-' + field).value.trim();
       validateRecords([record]);
-      await mutateInventory({ action: 'upsert', record, expectedVersion: editorVersion }); state.selected = record.location; state.dock = null;
+      await mutateInventory({ action: 'upsert', record, expectedVersion: editorVersion }); state.selected = record.location; state.selectedSection = record.section; state.dock = null;
       $('editor-dialog').close(); render();
-      toast('货物已保存到 ' + record.location + (recordsIn(record.location).reduce((n, r) => n + r.pallets, 0) > LANE_BY_ID[record.location].capacity ? '，托盘数超出图纸建议容量，请现场核对。' : '，其他成员将自动同步。'));
+      toast('货物已保存到 ' + locationLabel(record) + (recordsIn(record.location).filter(r => sectionOf(r) === record.section).reduce((n, r) => n + r.pallets, 0) > LANE_BY_ID[record.location].sections[record.section].capacity ? '，该半区托盘数超出图纸建议容量，请现场核对。' : '，其他成员将自动同步。'));
     } catch (error) { $('form-error').textContent = error.message; $('form-error').hidden = false; }
     finally { submit.disabled = false; }
   });
@@ -554,10 +589,10 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
     const url = URL.createObjectURL(new Blob([content], { type }));
     const a = document.createElement('a'); a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  $('export-button').onclick = () => download(`bestar-inventory-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ format: 'bestar-warehouse-lanes', version: 3, mode: 'shared', revision: state.revision, exportedAt: new Date().toISOString(), records: state.records }, null, 2), 'application/json');
+  $('export-button').onclick = () => download(`bestar-inventory-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ format: 'bestar-warehouse-lanes', version: 4, mode: 'shared', revision: state.revision, exportedAt: new Date().toISOString(), records: state.records }, null, 2), 'application/json');
   $('csv-button').onclick = () => {
-    const rows = [['纵列', 'SKU', '商品', '货件号', '货主', '目的仓', '托盘数', '箱数', '状态', '更新时间']];
-    for (const r of tableItems()) rows.push(r.empty ? [r.location, '', '', '', '', '', 0, 0, '空闲', ''] : [r.location, r.sku, r.name, r.shipment, r.owner, r.destination, r.pallets, r.cartons, STATUS[r.status], r.updatedAt]);
+    const rows = [['纵列', '半区', 'SKU', '商品', '货件号', '货主', '目的仓', '托盘数', '箱数', '状态', '更新时间']];
+    for (const r of tableItems()) rows.push(r.empty ? [r.location, '', '', '', '', '', '', 0, 0, '空闲', ''] : [r.location, SECTIONS[sectionOf(r)], r.sku, r.name, r.shipment, r.owner, r.destination, r.pallets, r.cartons, STATUS[r.status], r.updatedAt]);
     download('bestar-inventory.csv', '\ufeff' + rows.map(row => row.map(csvCell).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
   };
   $('import-button').onclick = () => { $('import-file').value = ''; $('import-file').click(); };
@@ -590,14 +625,15 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
       if (state.zone === 'all') setExtent('fba'); else focusZone(state.zone);
       render();
     }
-    if (button.dataset.locate) selectLane(button.dataset.locate, true);
+    if (button.dataset.locate) selectLane(button.dataset.locate, true, button.dataset.section);
+    if (button.hasAttribute('data-section-filter')) { state.selectedSection = button.dataset.sectionFilter || null; render(); }
     if (button.dataset.edit) openEditor(button.dataset.edit);
     if (button.dataset.add) openEditor(null, button.dataset.add);
     if (button.dataset.remove) {
       const record = state.records.find(r => r.id === button.dataset.remove);
       if (!record) return;
       const expectedVersion = state.versions[record.id];
-      confirmAction('移出此批货物', `将从 ${record.location} 移出「${record.name}」共 ${record.pallets} 托、${record.cartons} 箱，并同步至所有成员。`, async () => { await mutateInventory({ action: 'delete', id: record.id, expectedVersion }); render(); toast('此批货物已移出。'); }, '确认移出');
+      confirmAction('移出此批货物', `将从 ${locationLabel(record)} 移出「${record.name}」共 ${record.pallets} 托、${record.cartons} 箱，并同步至所有成员。`, async () => { await mutateInventory({ action: 'delete', id: record.id, expectedVersion }); render(); toast('此批货物已移出。'); }, '确认移出');
     }
   });
   $('add-button').onclick = () => openEditor();
@@ -643,8 +679,8 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
     }
     const laneNode = event.target.closest('[data-location]');
     if (!laneNode || event.pointerType === 'touch') { $('map-tooltip').hidden = true; return; }
-    const records = recordsIn(laneNode.dataset.location);
-    $('map-tooltip').innerHTML = `<strong>${laneNode.dataset.location}</strong> · ${records.length} 批货物<br>${records.reduce((n, r) => n + r.pallets, 0)} 托盘 · 点击查看整列`;
+    const records = recordsIn(laneNode.dataset.location).filter(r => sectionOf(r) === laneNode.dataset.section);
+    $('map-tooltip').innerHTML = `<strong>${laneNode.dataset.location} · ${SECTIONS[laneNode.dataset.section]}</strong> · ${records.length} 批货物<br>${records.reduce((n, r) => n + r.pallets, 0)} 托盘 · 点击查看半区`;
     const stage = $('map-stage').getBoundingClientRect();
     $('map-tooltip').hidden = false;
     $('map-tooltip').style.left = Math.max(8, Math.min(event.clientX - stage.left + 16, stage.width - 200)) + 'px';
@@ -652,7 +688,7 @@ dialog{background:var(--surface);border-color:var(--border-strong);padding:26px;
   });
   function activateMapNode(node) {
     if (!node) return;
-    if (node.dataset.location) selectLane(node.dataset.location);
+    if (node.dataset.location) selectLane(node.dataset.location, false, node.dataset.section);
     else if (node.dataset.dock) { state.dock = Number(node.dataset.dock); render(); }
   }
   svg.addEventListener('pointerup', event => {

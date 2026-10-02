@@ -17,7 +17,7 @@
 - [Vercel 云数据库和发布步骤](VERCEL_DEPLOYMENT.md)
 - [本次部署验证记录](DEPLOYMENT_VERIFICATION.md)
 
-正式站点：[inventory-chi-mauve.vercel.app](https://inventory-chi-mauve.vercel.app/)。当前通过 Vercel CLI 发布；GitHub 自动部署连接需先在 Vercel 账号绑定 GitHub 登录连接。
+正式站点：[inventory.bestarcca.com](https://inventory.bestarcca.com/)。Vercel 已连接 GitHub `xiaokh31/inventory`，生产分支 `main`；推送该分支后自动构建并发布到正式域名。CLI 可用于手动发布。
 
 两个部署连接不同数据库时，库存独立。要在方案之间切换，先备份，再迁移到目标数据库；两个站点只有连接同一数据库才共享库存。
 

@@ -19,7 +19,7 @@ async function request(route, method = 'GET', body) {
   assert.match(html, /id="rotate-right"/); assert.match(html, /id="cargo-destination"/);
   assert.equal((await request('/api/inventory')).status, 200);
   assert.doesNotMatch(html, /id="login-dialog"|id="logout-button"/);
-  const record = { id, location: 'A-01', sku: id, name: 'Docker 临时验证记录', shipment: '', owner: '', destination: 'ONT8', pallets: 1, cartons: 12, status: 'stored', notes: '自动检查结束后清理', updatedAt: new Date().toISOString() };
+  const record = { id, location: 'A-01', section: 'upper', sku: '', name: 'Docker 临时验证记录', shipment: '', owner: '', destination: 'ONT8', pallets: 1, cartons: 12, status: 'stored', notes: '自动检查结束后清理', updatedAt: new Date().toISOString() };
   let created = false;
   try {
     if (mode === 'verify-clean') {
@@ -36,13 +36,16 @@ async function request(route, method = 'GET', body) {
     if (mode === 'seed') { console.log('Temporary persistence record created:', id); return; }
     const snapshot = await request('/api/inventory', 'GET', undefined);
     assert.equal(snapshot.status, 200); assert.equal(snapshot.data.records.find(item => item.id === id).destination, 'ONT8');
+    const shared = snapshot.data.records.find(item => item.id === id);
+    assert.equal(shared.section, 'upper'); assert.equal(shared.sku, ''); assert.equal(shared.shipment, '');
     const version = snapshot.data.versions[id];
-    const moved = await request('/api/inventory', 'POST', { action: 'upsert', record: { ...record, location: 'C-15', destination: 'LAX9', cartons: 18 }, expectedVersion: version });
+    const moved = await request('/api/inventory', 'POST', { action: 'upsert', record: { ...record, location: 'C-15', section: 'lower', destination: 'LAX9', cartons: 18 }, expectedVersion: version });
     assert.equal(moved.status, 200);
     const stale = await request('/api/inventory', 'POST', { action: 'upsert', record: { ...record, cartons: 99 }, expectedVersion: version });
     assert.equal(stale.status, 409);
     const latest = (await request('/api/inventory', 'GET', undefined)).data.records.find(item => item.id === id);
     assert.equal(latest.location, 'C-15'); assert.equal(latest.cartons, 18); assert.equal(latest.destination, 'LAX9');
+    assert.equal(latest.section, 'lower');
     console.log('Running container HTTP checks passed: health, built page, public access, two anonymous clients, writes, movement and conflict protection.');
   } finally {
     if (created && mode !== 'seed') {

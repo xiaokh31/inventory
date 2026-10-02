@@ -47,7 +47,7 @@ docker compose --env-file .env.docker ps --all
 docker compose --env-file .env.docker --profile test run --build --rm test
 ```
 
-依次运行：模型/构建检查 12 项、真实 PostgreSQL API 检查 5 项、运行中应用的 HTTP 检查。包含无口令访问、双客户端读写、目的仓与移库、并发冲突和临时数据清理。测试容器结束后自动移除；应用和数据库继续运行。
+依次运行：模型/构建检查 14 项、真实 PostgreSQL API 检查 5 项、运行中应用的 HTTP 检查。包含无口令访问、双客户端读写、上下半区定位与移库、SKU/FBA 选填、目的仓、并发冲突和临时数据清理。测试容器结束后自动移除；应用和数据库继续运行。
 
 数据库测试仅操作随机隔离 schema。应用 HTTP 测试仅操作自身 `deploy-smoke-*` 唯一 ID 的货物，结束后移除。测试期间其他用户可能短暂看到该测试货物，因此该命令用于本机验收环境。
 

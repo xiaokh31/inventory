@@ -6,14 +6,14 @@
 
 ## 已上线实例
 
-- 正式地址：[inventory-chi-mauve.vercel.app](https://inventory-chi-mauve.vercel.app/)，无需登录。
+- 正式地址：[inventory.bestarcca.com](https://inventory.bestarcca.com/)，无需登录；原 Vercel 别名仍可访问。
 - Vercel 项目：`bestars-projects-3a180eb8/inventory`，Framework 为 **Other**，Node.js 24.x。
 - 数据库：独立 Neon `inventory-db`，Free 计划，区域 `iad1`；仅连接 Production 环境。Preview/Development 尚未配置云数据库，不会复用生产数据。
 - 生产 `DATABASE_URL` 由 Neon 集成注入，使用连接池端点；初始化通过 Docker 使用直连端点完成，未导入本机库存。
 - `APP_ORIGIN` 当前留空，按请求域名校验；已验证正式域名的同源写入。
-- 本次采用 CLI 发布。GitHub 仓库已同步，Vercel Git 连接返回「需要添加 GitHub Login Connection」，因此自动部署尚未启用。
+- GitHub 已连接 `xiaokh31/inventory`，生产分支 `main`。在 Vercel 项目 Settings → Git 可查看连接。
 
-后续更新：先运行 Docker 检查并推送 `main`，再执行 `npx vercel deploy --prod --scope bestars-projects-3a180eb8`。若要启用 Git 自动部署，在 Vercel 账号绑定 GitHub 登录连接后执行 `npx vercel git connect https://github.com/xiaokh31/inventory.git --yes --scope bestars-projects-3a180eb8`。
+后续更新：先运行 Docker 检查，再提交并推送 `main`。Vercel 自动拉取代码、安装依赖、执行 `npm run build`，成功后更新正式站点；通常无需手动运行发布命令。在 Vercel Deployments 中核对提交 SHA 和 Production 的 Ready 状态，失败时查看该次构建日志。当前仅 Production 配置数据库，其他分支的 Preview 不复用生产库存。
 
 ## 1. 部署组成
 
@@ -51,7 +51,7 @@ docker run --rm --env-file .env.vercel-migrate bestar-inventory:local node scrip
 
 不要把 `.env.docker` 的 `db:5432` 内网连接串填写到 Vercel。迁移成功后移除本地临时云连接配置，正式值保存在 Vercel 环境变量中。
 
-迁移对应 `db/migrations/001_inventory.sql`，事务内创建 `warehouse_inventory_meta` 和 `warehouse_inventory_records`。可重复运行，不清空已有库存，不插入测试数据。也可在服务商 SQL 控制台执行该文件。初始化不在构建时自动运行，避免每次预览部署触碰正式库。
+迁移对应 `db/migrations/001_inventory.sql`，事务内创建 `warehouse_inventory_meta` 和 `warehouse_inventory_records`。可重复运行，不清空已有库存，不插入测试数据。也可在服务商 SQL 控制台执行该文件。初始化不在构建时自动运行，避免每次预览部署触碰正式库。本次上下半区字段保存在现有记录 JSONB 中，不需要新建表或重新初始化；旧记录保留为「未标注半区」。
 
 ## 3. Vercel 项目设置
 
@@ -88,7 +88,16 @@ Vercel CLI 可能因仓库中有 Dockerfile 自动识别成 Container；本项�
 
 ## 5. 部署
 
-Git 方式：源码仓库为 [xiaokh31/inventory](https://github.com/xiaokh31/inventory)，生产分支为 `main`。在 Vercel 导入该仓库，配置环境变量后部署。
+Git 方式（当前已启用）：源码仓库为 [xiaokh31/inventory](https://github.com/xiaokh31/inventory)，生产分支为 `main`。推送后自动部署：
+
+```powershell
+docker compose --env-file .env.docker --profile test run --build --rm test
+git add -p
+git commit -m "Describe the change"
+git push origin main
+```
+
+在 Vercel Deployments 中确认最新 Production 部署对应上述提交并显示 Ready，再打开正式域名检查。网页保持打开的设备需刷新一次以加载新版界面。
 
 CLI 方式：
 
@@ -112,12 +121,12 @@ npx vercel --prod
 1. 直接打开页面后顶部显示「共享库存 · 已连接」，不应持续显示连接错误。
    可先访问 `/api/health`，预期 HTTP 200 且只返回 `{"status":"ok"}`；数据库不可用或缺表返回 503。
 2. 空数据库显示 45 列、0 批货物；已有数据库显示其实际记录，更新部署不会生成示例库存。
-3. 在设备一新增临时记录并填写目的仓，设备二打开同一站点，约 5 秒后可见相同内容。
+3. 在设备一选择上半区新增临时记录，SKU/FBA 留空，设备二打开同一站点，约 5 秒后可见相同内容；改为下半区后核对同步结果。
 4. 两端同时打开同一批货物编辑，先保存成功，后保存提示冲突并保留草稿；关闭后重新打开最新记录核对。
-5. 检查 90°/270° 旋转、复位、搜索、点击定位、目的仓编辑及导出。刷新两个设备确认持久保存。
+5. 检查 90°/270° 旋转、复位、搜索、上下半区点击定位、目的仓编辑及导出。旋转不改变以原始图纸为准的上下方位；刷新两个设备确认持久保存。
 6. 移出自己新增的临时记录，确认两端同步恢复。
 
-旧浏览器库存不会自动上传。原地址新页面可检测旧库存并提供导入按钮；跨域迁移需从旧地址导出 JSON，再在新站点导入。导入替换所有成员共享库存，先导出当前数据库备份。旧 v1/v2 编号按物理位置转换，v3 不重复转换。缺少目的仓的记录显示未填写。
+旧浏览器库存不会自动上传。原地址新页面可检测旧库存并提供导入按钮；跨域迁移需从旧地址导出 JSON，再在新站点导入。导入替换所有成员共享库存，先导出当前数据库备份。旧 v1/v2 编号按物理位置转换，v3/v4 不重复转换。缺少目的仓的记录显示未填写；缺少半区的旧记录显示「未标注半区」，编辑时再核对位置。新导出使用 v4，CSV 同样含半区。
 
 更换域名但连接同一数据库时库存仍共享；更换数据库则需迁移数据。不再使用旧版“各浏览器分别保存”的模式。
 
@@ -136,8 +145,8 @@ npx vercel --prod
 
 ## 8. 当前验证范围
 
-本机已改为 Docker，应用和 PostgreSQL 均在容器内运行。测试容器中的 12 项模型/构建检查、5 项真实数据库接口检查及运行中容器 HTTP 检查通过。已验证移除并重建容器后库存持久保留，以及数据库备份恢复；详情见 [部署验证记录](DEPLOYMENT_VERIFICATION.md)。
+本机已改为 Docker，应用和 PostgreSQL 均在容器内运行。测试容器中的 14 项模型/构建检查、5 项真实数据库接口检查及运行中容器 HTTP 检查通过。浏览器已验证半区点击、空 SKU/FBA 入库、半区移库、旋转及台账。此前已验证移除并重建容器后库存持久保留，以及数据库备份恢复；详情见 [部署验证记录](DEPLOYMENT_VERIFICATION.md)。
 
-2026-10-02 已发布上述正式站点，首页及健康检查返回 HTTP 200，数据库连接正常。通过 Docker 对正式域名完成无 Cookie 的双客户端读写、目的仓、移库、过期版本冲突及删除测试；唯一临时记录已删除，复查云端库存为 0 条。浏览器无需登录即可显示「共享库存 · 已连接」，入库入口可用。
+2026-10-02 初次发布时，已通过 Docker 对正式站点完成无 Cookie 的双客户端读写、目的仓、移库、过期版本冲突及删除测试；当时唯一临时记录已删除，云端为 0 条。此次升级前已存在 7 批库存，升级及检查均保留已有数据，清理范围仅限本次自行创建的临时记录。
 
-未导入真实库存、未校核现场库容；本次双客户端为 HTTP 客户端验证，仓库现场不同设备仍可按第 6 节验收。Vercel Git 自动部署尚未连接，当前通过 CLI 更新。
+未改写已有货物，也未校核现场库容；双客户端为 HTTP 客户端验证，仓库现场不同设备仍可按第 6 节验收。Git 自动部署已连接，生产更新通过推送 `main` 完成。

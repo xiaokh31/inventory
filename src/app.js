@@ -1,4 +1,4 @@
-/* BESTAR warehouse: source-image coordinates, inventory located by whole lane. */
+/* BESTAR warehouse: source-image coordinates, inventory located by lane and half. */
 (function () {
   'use strict';
   const PX_PER_M = 201 / 12;
@@ -12,16 +12,25 @@
   ];
   const COLUMN_X = [6, 208, 409, 610, 811, 1012, 1207];
   const COLUMN_Y = [284, 561, 837, 1114, 1391, 1667];
+  const SECTIONS = { upper: '上半区', lower: '下半区', unspecified: '未标注半区' };
+  const sectionOf = record => record.section || 'unspecified';
+  const locationLabel = record => `${record.location} · ${SECTIONS[sectionOf(record)]}`;
   const COLUMNS = COLUMN_Y.flatMap(y => COLUMN_X.map(x => ({ x, y })));
   const DOCKS = Array.from({ length: 12 }, (_, i) => ({ number: 23 + i, x: 1160, y: 1321 - i * 92.2, width: 50, height: 45 }));
   const intersects = (a, b) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
   function createLanes() {
     return ZONES.flatMap(zone => Array.from({ length: 15 }, (_, index) => {
       const lane = { id: `${zone.id}-${String(index + 1).padStart(2, '0')}`, zone: zone.id, number: index + 1, x: zone.x + (14 - index) * LANE_WIDTH, y: zone.y, width: LANE_WIDTH, height: zone.height };
-      const rows = Math.floor(zone.height / PALLET_DEPTH);
-      const padding = (zone.height - rows * PALLET_DEPTH) / 2;
-      lane.positions = Array.from({ length: rows }, (_, row) => ({ x: lane.x + (LANE_WIDTH - PALLET_WIDTH) / 2, y: zone.y + zone.height - padding - (row + 1) * PALLET_DEPTH, width: PALLET_WIDTH, height: PALLET_DEPTH }))
-        .filter(pallet => !COLUMNS.some(column => intersects(pallet, { x: column.x - 5, y: column.y - 5, width: 10, height: 10 })));
+      lane.splitY = COLUMN_Y.find(y => y > zone.y && y < zone.y + zone.height);
+      lane.sections = Object.fromEntries(['upper', 'lower'].map(section => {
+        const y = section === 'upper' ? zone.y : lane.splitY;
+        const height = section === 'upper' ? lane.splitY - zone.y : zone.y + zone.height - lane.splitY;
+        const rows = Math.floor(height / PALLET_DEPTH), padding = (height - rows * PALLET_DEPTH) / 2;
+        const positions = Array.from({ length: rows }, (_, row) => ({ section, x: lane.x + (LANE_WIDTH - PALLET_WIDTH) / 2, y: y + height - padding - (row + 1) * PALLET_DEPTH, width: PALLET_WIDTH, height: PALLET_DEPTH }))
+          .filter(pallet => !COLUMNS.some(column => intersects(pallet, { x: column.x - 5, y: column.y - 5, width: 10, height: 10 })));
+        return [section, { y, height, positions, capacity: positions.length }];
+      }));
+      lane.positions = ['lower', 'upper'].flatMap(section => lane.sections[section].positions);
       lane.capacity = lane.positions.length;
       return lane;
     }));
@@ -37,7 +46,9 @@
       if (!record || typeof record !== 'object' || Array.isArray(record)) fail('记录格式不正确。');
       if (!Object.hasOwn(LANE_BY_ID, record.location)) fail('纵列编号不存在，请使用 A-01 至 C-15。');
       if (!['stored', 'outbound', 'reserved'].includes(record.status)) fail('状态应为 stored、outbound 或 reserved。');
-      for (const [field, limit, required] of [['id', 100, true], ['sku', 80, true], ['name', 100, true], ['shipment', 80, false], ['owner', 80, false], ['notes', 500, false]]) {
+      record = { ...record, sku: record.sku === undefined ? '' : record.sku, shipment: record.shipment === undefined ? '' : record.shipment, section: record.section === undefined ? 'unspecified' : record.section };
+      if (typeof record.section !== 'string' || !Object.hasOwn(SECTIONS, record.section)) fail('半区应为 upper、lower 或 unspecified。');
+      for (const [field, limit, required] of [['id', 100, true], ['sku', 80, false], ['name', 100, true], ['shipment', 80, false], ['owner', 80, false], ['notes', 500, false]]) {
         if (typeof record[field] !== 'string' || record[field].length > limit || (required && !record[field].trim())) fail(`${field} 格式或长度不正确。`);
       }
       const destination = record.destination === undefined ? '' : record.destination;
@@ -47,7 +58,7 @@
       if (!Number.isSafeInteger(record.pallets) || record.pallets < 1 || record.pallets > 10000) fail('托盘数必须是 1–10,000 的整数。');
       if (!Number.isSafeInteger(record.cartons) || record.cartons < 1 || record.cartons > 1000000) fail('箱数必须是 1–1,000,000 的整数。');
       if (typeof record.updatedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(record.updatedAt) || !Number.isFinite(Date.parse(record.updatedAt))) fail('更新时间不是有效的 ISO 日期。');
-      return { id: record.id, location: record.location, sku: record.sku.trim(), name: record.name.trim(), shipment: record.shipment.trim(), owner: record.owner.trim(), destination: destination.trim(), cartons: record.cartons, pallets: record.pallets, status: record.status, notes: record.notes.trim(), updatedAt: record.updatedAt };
+      return { id: record.id, location: record.location, section: record.section, sku: record.sku.trim(), name: record.name.trim(), shipment: record.shipment.trim(), owner: record.owner.trim(), destination: destination.trim(), cartons: record.cartons, pallets: record.pallets, status: record.status, notes: record.notes.trim(), updatedAt: record.updatedAt };
     });
   }
   function renumberLegacyRecords(records) {
@@ -57,13 +68,13 @@
   function parseBackup(text) {
     let data;
     try { data = JSON.parse(text); } catch { throw new Error('文件不是有效的 JSON。'); }
-    if (!data || data.format !== 'bestar-warehouse-lanes' || ![1, 2, 3].includes(data.version)) throw new Error('请选择此页面导出的纵列库存备份（version 1、2 或 3）。');
+    if (!data || data.format !== 'bestar-warehouse-lanes' || ![1, 2, 3, 4].includes(data.version)) throw new Error('请选择此页面导出的库存备份（version 1 至 4）。');
     const records = validateRecords(data.records);
     return { records: data.version < 3 ? renumberLegacyRecords(records) : records, mode: data.mode === 'demo' ? 'demo' : 'local', renumbered: data.version < 3 };
   }
   function queryRecords(records, zone = 'all', status = 'all', query = '') {
     const term = query.trim().toLocaleLowerCase();
-    return records.filter(record => (zone === 'all' || record.location.startsWith(zone + '-')) && (status === 'all' || status === record.status) && (!term || [record.location, record.sku, record.name, record.shipment, record.owner, record.destination || ''].some(value => value.toLocaleLowerCase().includes(term))));
+    return records.filter(record => (zone === 'all' || record.location.startsWith(zone + '-')) && (status === 'all' || status === record.status) && (!term || [record.location, locationLabel(record), record.sku || '', record.name, record.shipment || '', record.owner, record.destination || ''].some(value => value.toLocaleLowerCase().includes(term))));
   }
   function summaries(records) {
     const occupied = new Set(records.map(record => record.location)).size;
@@ -90,7 +101,7 @@
     const x = Math.min(...points.map(p => p.x)), y = Math.min(...points.map(p => p.y));
     return { x, y, w: Math.max(...points.map(p => p.x)) - x, h: Math.max(...points.map(p => p.y)) - y };
   }
-  const model = { PX_PER_M, LANE_WIDTH, PALLET_WIDTH, PALLET_DEPTH, ZONES, COLUMNS, DOCKS, LANES, LANE_BY_ID, STATUS, intersects, validateRecords, parseBackup, queryRecords, summaries, csvCell, loadInventory, rotatePoint, rotateBounds };
+  const model = { PX_PER_M, LANE_WIDTH, PALLET_WIDTH, PALLET_DEPTH, ZONES, COLUMNS, DOCKS, LANES, LANE_BY_ID, STATUS, SECTIONS, sectionOf, locationLabel, intersects, validateRecords, parseBackup, queryRecords, summaries, csvCell, loadInventory, rotatePoint, rotateBounds };
   if (typeof module !== 'undefined' && module.exports) module.exports = model;
   if (typeof document === 'undefined') return;
 
@@ -98,7 +109,7 @@
   const esc = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const fmt = value => value.toLocaleString('zh-CN');
   const NS = 'http://www.w3.org/2000/svg';
-  const state = { records: [], versions: {}, revision: -1, loaded: false, online: false, rotation: 0, selected: 'A-01', dock: null, zone: 'all', status: 'all', query: '', view: 'map', page: 0, extent: 'fba', viewport: { x: -35, y: 685, w: 1390, h: 1270 } };
+  const state = { records: [], versions: {}, revision: -1, loaded: false, online: false, rotation: 0, selected: 'A-01', selectedSection: null, dock: null, zone: 'all', status: 'all', query: '', view: 'map', page: 0, extent: 'fba', viewport: { x: -35, y: 685, w: 1390, h: 1270 } };
   let toastTimer;
   function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 4800); }
   let syncPending = false;
@@ -178,6 +189,9 @@
       add(layer, 'rect', { x: zone.x - 2, y: zone.y - 2, width: zone.width + 4, height: zone.height + 4, fill: '#f7faf6', stroke: '#bccfc1', 'stroke-width': 1.4 });
       add(layer, 'text', { x: 1055, y: zone.y + zone.height / 2, 'text-anchor': 'middle', class: 'structure-text', 'font-size': 30, fill: '#59866e' }, zone.id);
       add(layer, 'text', { x: 1055, y: zone.y + zone.height / 2 + 23, 'text-anchor': 'middle', class: 'structure-text', 'font-size': 10 }, 'FBA 区');
+      const splitY = LANE_BY_ID[zone.id + '-01'].splitY;
+      add(layer, 'text', { x: 1055, y: (zone.y + splitY) / 2, 'text-anchor': 'middle', class: 'half-direction', 'font-size': 10, fill: '#647b6c' }, '上半区');
+      add(layer, 'text', { x: 1055, y: (splitY + zone.y + zone.height) / 2, 'text-anchor': 'middle', class: 'half-direction', 'font-size': 10, fill: '#647b6c' }, '下半区');
     }
     for (const y of [978, 1262]) {
       add(layer, 'path', { d: `M642 ${y} H736 M897 ${y} H982`, stroke: '#d4ddd3', 'stroke-width': 1.4, 'stroke-dasharray': '5 5' });
@@ -232,19 +246,27 @@
     for (const lane of LANES) {
       const records = recordsIn(lane.id);
       const selected = state.selected === lane.id && !state.dock;
-      const g = add(layer, 'g', { class: `lane${selected ? ' selected' : ''}${matches.has(lane.id) ? '' : ' dimmed'}`, 'data-location': lane.id, role: 'button', tabindex: 0, 'aria-label': `${lane.id} 纵列，${records.reduce((n, r) => n + r.pallets, 0)} 托盘，${records.length} 批货物`, 'aria-pressed': selected });
-      add(g, 'rect', { x: lane.x + 1.5, y: lane.y, width: lane.width - 3, height: lane.height, rx: 1.6, class: 'lane-hit' });
-      const statuses = [];
-      for (const record of records) {
-        const count = Math.min(record.pallets, lane.capacity - statuses.length);
-        for (let i = 0; i < count; i++) statuses.push(record.status);
+      const g = add(layer, 'g', { class: `lane${selected ? ' selected' : ''}${matches.has(lane.id) ? '' : ' dimmed'}`, role: 'group', 'aria-label': `${lane.id} 纵列` });
+      for (const section of ['upper', 'lower']) {
+        const area = lane.sections[section], halfRecords = records.filter(record => sectionOf(record) === section);
+        const active = selected && (!state.selectedSection || state.selectedSection === section);
+        const half = add(g, 'g', { class: `lane-half${active ? ' selected' : ''}`, 'data-location': lane.id, 'data-section': section, role: 'button', tabindex: 0, 'aria-label': `${lane.id} ${SECTIONS[section]}，${halfRecords.reduce((n, r) => n + r.pallets, 0)} 托盘，${halfRecords.length} 批货物`, 'aria-pressed': active });
+        add(half, 'rect', { x: lane.x + 1.5, y: area.y + 1.5, width: lane.width - 3, height: area.height - 3, rx: 1.6, class: 'lane-hit' });
+        const statuses = [];
+        for (const record of halfRecords) {
+          const count = Math.min(record.pallets, area.capacity - statuses.length);
+          for (let i = 0; i < count; i++) statuses.push(record.status);
+        }
+        area.positions.forEach((position, index) => {
+          const status = statuses[index] || 'empty';
+          const rect = { x: position.x + .4, y: position.y + .7, width: position.width - .8, height: position.height - 1.4 };
+          add(half, 'rect', { ...rect, rx: 1, class: `pallet-${status}`, 'pointer-events': 'none' });
+          if (status !== 'empty') for (const fraction of [.33, .66]) add(half, 'line', { x1: rect.x + 2, y1: rect.y + rect.height * fraction, x2: rect.x + rect.width - 2, y2: rect.y + rect.height * fraction, class: 'pallet-slat' });
+        });
+        add(half, 'title', {}, `${lane.id} · ${SECTIONS[section]} · ${halfRecords.length} 批货物`);
       }
-      lane.positions.forEach((position, index) => {
-        const status = statuses[index] || 'empty';
-        const rect = { x: position.x + .4, y: position.y + .7, width: position.width - .8, height: position.height - 1.4 };
-        add(g, 'rect', { ...rect, rx: 1, class: `pallet-${status}`, 'pointer-events': 'none' });
-        if (status !== 'empty') for (const fraction of [.33, .66]) add(g, 'line', { x1: rect.x + 2, y1: rect.y + rect.height * fraction, x2: rect.x + rect.width - 2, y2: rect.y + rect.height * fraction, class: 'pallet-slat' });
-      });
+      add(g, 'line', { x1: lane.x, y1: lane.splitY, x2: lane.x + lane.width, y2: lane.splitY, class: 'lane-divider', 'pointer-events': 'none' });
+      if (records.some(record => sectionOf(record) === 'unspecified')) add(g, 'text', { x: lane.x + lane.width / 2, y: lane.splitY + 4, class: 'unassigned-marker', 'pointer-events': 'none' }, '?');
       for (const column of COLUMNS) {
         if (intersects(lane, { x: column.x - 5, y: column.y - 5, width: 10, height: 10 })) add(g, 'rect', { x: Math.max(lane.x + 2, column.x - 6), y: column.y - 7, width: Math.min(lane.width - 4, 12), height: 14, fill: 'url(#blocked-pattern)', opacity: .55, 'pointer-events': 'none' });
       }
@@ -274,20 +296,29 @@
       return `<button class="zone-card" data-zone="${zone.id}"><span class="zone-letter">${zone.id}</span><span class="zone-card-body"><span class="zone-card-title">${zone.id} 区<span>${occupied} / 15 列已用</span></span><span class="zone-card-bar"><i style="width:${occupied / 15 * 100}%"></i></span><span class="zone-card-bottom"><span>${records.reduce((n, r) => n + r.pallets, 0)} 托盘 · ${records.length} 批货物</span><span>${15 - occupied} 列空闲</span></span></span><span class="zone-card-arrow">↗</span></button>`;
     }).join('');
   }
+  function cargoCard(record) {
+    return `<article class="cargo-card"><div class="cargo-card-top"><h3>${esc(record.name)}</h3><span class="badge ${record.status}">${STATUS[record.status]}</span></div><p class="cargo-sku">${esc(record.sku || 'SKU 未填写')}</p><div class="cargo-field"><span>所在半区</span><strong>${SECTIONS[sectionOf(record)]}</strong></div><div class="cargo-field"><span>货件号</span><strong>${esc(record.shipment || '—')}</strong></div><div class="cargo-field"><span>目的仓</span><strong>${esc(record.destination || '未填写')}</strong></div><div class="cargo-field"><span>货主</span><strong>${esc(record.owner || '—')}</strong></div><div class="cargo-field"><span>数量</span><strong>${fmt(record.pallets)} 托 / ${fmt(record.cartons)} 箱</strong></div>${record.notes ? `<p class="cargo-notes">${esc(record.notes)}</p>` : ''}<div class="cargo-card-actions"><button data-edit="${esc(record.id)}">编辑 / 移库 ↗</button><button class="remove-cargo" data-remove="${esc(record.id)}">移出此批</button></div></article>`;
+  }
   function renderDetail() {
     if (state.dock) {
       $('detail-content').innerHTML = `<div class="detail-location-heading"><h2>Dock ${state.dock}</h2><span class="badge empty">装卸口</span></div><p class="detail-subtitle">仓库右侧 · 编号由下向上递增</p><div class="dock-detail">门洞：9′w × 10′h<br>共 12 个 dock：23–34<br><br>12′w × 14′h 仓库进出门与 drive-in 独立标记，不占用 dock 编号。</div><button class="button detail-primary" id="return-lane">返回纵列详情</button>`;
       $('return-lane').onclick = () => { state.dock = null; render(); };
       return;
     }
-    const lane = LANE_BY_ID[state.selected];
-    const records = recordsIn(lane.id);
-    const pallets = records.reduce((n, r) => n + r.pallets, 0);
-    const cartons = records.reduce((n, r) => n + r.cartons, 0);
-    const status = laneStatus(records);
-    $('detail-content').innerHTML = `<div class="detail-location-heading"><h2>${lane.id}</h2><span class="badge ${status}">${records.length ? records.length + ' 批货物' : '空闲纵列'}</span></div><p class="detail-subtitle">${lane.zone} 区 · 从右向左第 ${String(lane.number).padStart(2, '0')} 列<br>宽 1.6 m · 货物沿图纸竖向摆放</p><div class="location-mini" aria-label="当前纵列在区域中的位置">${Array.from({ length: 15 }, (_, i) => `<span class="mini-lane${15 - i === lane.number ? ' selected' : ''}"></span>`).join('')}<span class="mini-label">${lane.zone} 区 / 15 列</span></div><div class="detail-metrics"><div><small>托盘总数</small><strong>${fmt(pallets)}<span>托</span></strong></div><div><small>库存箱数</small><strong>${fmt(cartons)}<span>箱</span></strong></div></div><div class="cargo-heading">列内货物<span>${records.length} 批记录</span></div><div class="cargo-list">${records.length ? records.map(record => `<article class="cargo-card"><div class="cargo-card-top"><h3>${esc(record.name)}</h3><span class="badge ${record.status}">${STATUS[record.status]}</span></div><p class="cargo-sku">${esc(record.sku)}</p><div class="cargo-field"><span>货件号</span><strong>${esc(record.shipment || '—')}</strong></div><div class="cargo-field"><span>目的仓</span><strong>${esc(record.destination || '未填写')}</strong></div><div class="cargo-field"><span>货主</span><strong>${esc(record.owner || '—')}</strong></div><div class="cargo-field"><span>数量</span><strong>${fmt(record.pallets)} 托 / ${fmt(record.cartons)} 箱</strong></div>${record.notes ? `<p class="cargo-notes">${esc(record.notes)}</p>` : ''}<div class="cargo-card-actions"><button data-edit="${esc(record.id)}">编辑 / 移库 ↗</button><button class="remove-cargo" data-remove="${esc(record.id)}">移出此批</button></div></article>`).join('') : '<div class="empty-detail">此列暂无货物<br>可登记新到货物或安排移库</div>'}</div><button class="button primary detail-primary" id="add-to-lane">＋ 向此列登记货物</button><p class="capacity-note${pallets > lane.capacity ? ' warning' : ''}">${pallets > lane.capacity ? '⚠ 已超出建议容量。' : ''}图纸估算约 ${lane.capacity} 托 / 列，已避开柱位。<br>托盘图形仅示意数量，不代表逐托位置。</p>`;
+    const lane = LANE_BY_ID[state.selected], allRecords = recordsIn(lane.id);
+    const records = state.selectedSection ? allRecords.filter(record => sectionOf(record) === state.selectedSection) : allRecords;
+    const pallets = records.reduce((n, r) => n + r.pallets, 0), cartons = records.reduce((n, r) => n + r.cartons, 0);
+    const status = laneStatus(records), sectionName = SECTIONS[state.selectedSection] || '整条纵列';
+    const filters = [[null, '整列'], ['upper', '上半区'], ['lower', '下半区']];
+    if (allRecords.some(record => sectionOf(record) === 'unspecified') || state.selectedSection === 'unspecified') filters.push(['unspecified', '未标注']);
+    const tabs = filters.map(([section, label]) => `<button data-section-filter="${section || ''}" aria-pressed="${state.selectedSection === section}">${label}<small>${(section ? allRecords.filter(r => sectionOf(r) === section) : allRecords).length} 批</small></button>`).join('');
+    const capacity = lane.sections[state.selectedSection]?.capacity ?? lane.capacity;
+    const overCapacity = state.selectedSection ? state.selectedSection !== 'unspecified' && pallets > capacity : ['upper', 'lower'].some(section => allRecords.filter(r => sectionOf(r) === section).reduce((n, r) => n + r.pallets, 0) > lane.sections[section].capacity) || pallets > capacity;
+    const unknownCount = allRecords.filter(r => sectionOf(r) === 'unspecified').length;
+    $('detail-content').innerHTML = `<div class="detail-location-heading"><h2>${lane.id}</h2><span class="badge ${status}">${sectionName}</span></div><p class="detail-subtitle">${lane.zone} 区 · 从右向左第 ${String(lane.number).padStart(2, '0')} 列<br>宽 1.6 m · 上下以原图立柱横线为界</p><div class="section-tabs" role="group" aria-label="所在纵列半区">${tabs}</div>${unknownCount ? `<p class="section-notice">${unknownCount} 批旧货物未标注半区，请编辑核对；地图以 ? 标记。</p>` : ''}<div class="detail-metrics"><div><small>${sectionName}托盘</small><strong>${fmt(pallets)}<span>托</span></strong></div><div><small>库存箱数</small><strong>${fmt(cartons)}<span>箱</span></strong></div></div><div class="cargo-heading">${sectionName}货物<span>${records.length} 批记录</span></div><div class="cargo-list">${records.length ? records.map(cargoCard).join('') : '<div class="empty-detail">暂无货物<br>可登记新到货物或安排移库</div>'}</div><button class="button primary detail-primary" id="add-to-lane">＋ 向${['upper', 'lower'].includes(state.selectedSection) ? sectionName : '此列'}登记货物</button><p class="capacity-note${overCapacity ? ' warning' : ''}">${overCapacity ? '⚠ 已超出建议容量，请现场核对。<br>' : ''}图纸估算：上半区 ${lane.sections.upper.capacity} 托，下半区 ${lane.sections.lower.capacity} 托。<br>旋转不改变上下方位；未标注货物不分配托盘图形。</p>`;
     $('add-to-lane').onclick = () => openEditor(null, lane.id);
   }
+
   function tableItems() {
     if (state.status === 'empty') return matchingLanes().map(lane => ({ location: lane.id, empty: true }));
     return queryRecords(state.records, state.zone, state.status, state.query);
@@ -297,7 +328,7 @@
     state.page = Math.min(state.page, Math.max(0, Math.ceil(items.length / 15) - 1));
     const start = state.page * 15;
     $('table-caption').textContent = `${state.status === 'empty' ? '空闲纵列' : '按货物批次列出'} · 当前筛选 ${items.length} 条`;
-    $('inventory-body').innerHTML = items.slice(start, start + 15).map(r => r.empty ? `<tr><td><button class="location-link" data-locate="${r.location}">${r.location}</button></td><td colspan="5">暂无货物</td><td><span class="badge empty">空闲</span></td><td>—</td><td><button class="table-edit" data-add="${r.location}">登记货物</button></td></tr>` : `<tr><td><button class="location-link" data-locate="${r.location}">${r.location} ↗</button></td><td>${esc(r.sku)}<small>${esc(r.name)} · ${r.pallets} 托</small></td><td>${esc(r.shipment || '—')}</td><td>${esc(r.owner || '—')}</td><td>${esc(r.destination || '未填写')}</td><td>${fmt(r.cartons)}</td><td><span class="badge ${r.status}">${STATUS[r.status]}</span></td><td>${new Date(r.updatedAt).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' })}</td><td><button class="table-edit" data-edit="${esc(r.id)}">编辑</button></td></tr>`).join('') || '<tr><td colspan="9" class="table-empty">没有符合条件的货物或纵列</td></tr>';
+    $('inventory-body').innerHTML = items.slice(start, start + 15).map(r => r.empty ? `<tr><td><button class="location-link" data-locate="${r.location}">${r.location}</button></td><td colspan="5">暂无货物</td><td><span class="badge empty">空闲</span></td><td>—</td><td><button class="table-edit" data-add="${r.location}">登记货物</button></td></tr>` : `<tr><td><button class="location-link" data-locate="${r.location}" data-section="${sectionOf(r)}">${locationLabel(r)} ↗</button></td><td>${esc(r.sku || "—")}<small>${esc(r.name)} · ${r.pallets} 托</small></td><td>${esc(r.shipment || '—')}</td><td>${esc(r.owner || '—')}</td><td>${esc(r.destination || '未填写')}</td><td>${fmt(r.cartons)}</td><td><span class="badge ${r.status}">${STATUS[r.status]}</span></td><td>${new Date(r.updatedAt).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' })}</td><td><button class="table-edit" data-edit="${esc(r.id)}">编辑</button></td></tr>`).join('') || '<tr><td colspan="9" class="table-empty">没有符合条件的货物或纵列</td></tr>';
     $('pagination-info').textContent = items.length ? `${start + 1}–${Math.min(start + 15, items.length)} / 共 ${items.length} 条` : '共 0 条';
     $('prev-page').disabled = state.page === 0;
     $('next-page').disabled = start + 15 >= items.length;
@@ -331,7 +362,7 @@
     state.viewport = rotateBounds(extent === 'overview' ? { x: -90, y: -75, w: 1540, h: 2110 } : { x: -35, y: 685, w: 1390, h: 1270 }, state.rotation);
     $('overview-button').classList.toggle('active', extent === 'overview');
     $('fba-button').classList.toggle('active', extent === 'fba');
-    $('map-caption').textContent = extent === 'overview' ? '全仓总览 · 右侧 12 个 dock：由下向上 23–34' : 'FBA 作业区 · 点击纵列查看货物';
+    $('map-caption').textContent = extent === 'overview' ? '全仓总览 · 右侧 12 个 dock：由下向上 23–34' : '立柱横线分上下半区 · 点击半区查看货物';
     updateViewport();
   }
   function updateViewport() {
@@ -377,25 +408,26 @@
     $('orientation-arrow').style.transform = `rotate(${state.rotation}deg)`;
     $('map-tooltip').hidden = true; orientLabels(); updateViewport();
   }
-  function selectLane(id, focus = false) {
+  function selectLane(id, focus = false, section = null) {
     if (!LANE_BY_ID[id]) return;
-    state.selected = id; state.dock = null; setView('map');
+    state.selected = id; state.selectedSection = Object.hasOwn(SECTIONS, section) ? section : null; state.dock = null; setView('map');
     if (focus) focusZone(LANE_BY_ID[id].zone);
     render();
     if (focus) $('map-view').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
   }
   let editorVersion = 0;
-  function openEditor(recordId = null, location = state.selected) {
+  function openEditor(recordId = null, location = state.selected, section = location === state.selected ? state.selectedSection : null) {
     if (!state.online) { toast('数据库未连接，请先同步。'); return; }
     const record = recordId ? state.records.find(r => r.id === recordId) : null;
     if (recordId && !record) { toast('此批货物已被移出，请查看最新库存。'); return; }
     editorVersion = record ? state.versions[record.id] : 0;
     $('cargo-form').reset(); $('form-error').hidden = true;
     $('editor-title').textContent = record ? '编辑货物 / 移库' : '货物入库';
-    $('editor-description').textContent = '填写货物目的仓；修改所在纵列即可移库，同一列可登记多批货物。';
+    $('editor-description').textContent = '以原图立柱横线为界选择上半区或下半区；旋转不改变方位。修改纵列或半区即可移库。';
     $('edit-original').value = record?.id || '';
     $('cargo-location').innerHTML = LANES.map(lane => `<option value="${lane.id}">${lane.id} · 已登记 ${recordsIn(lane.id).reduce((n, r) => n + r.pallets, 0)} 托</option>`).join('');
     $('cargo-location').value = record?.location || location || 'A-01';
+    $('cargo-section').value = record ? sectionOf(record) === 'unspecified' ? '' : record.section : ['upper', 'lower'].includes(section) ? section : '';
     for (const field of ['sku', 'name', 'shipment', 'owner', 'destination', 'notes']) $('cargo-' + field).value = record?.[field] || '';
     $('cargo-cartons').value = record?.cartons || 1;
     $('cargo-pallets').value = record?.pallets || 1;
@@ -422,12 +454,12 @@
     try {
       const id = $('edit-original').value || (globalThis.crypto?.randomUUID?.() || `cargo-${Date.now()}-${Math.random().toString(36).slice(2)}`);
       $('edit-original').value = id;
-      const record = { id, location: $('cargo-location').value, status: $('cargo-status').value, cartons: Number($('cargo-cartons').value), pallets: Number($('cargo-pallets').value), updatedAt: new Date().toISOString() };
+      const record = { id, location: $('cargo-location').value, section: $('cargo-section').value, status: $('cargo-status').value, cartons: Number($('cargo-cartons').value), pallets: Number($('cargo-pallets').value), updatedAt: new Date().toISOString() };
       for (const field of ['sku', 'name', 'shipment', 'owner', 'destination', 'notes']) record[field] = $('cargo-' + field).value.trim();
       validateRecords([record]);
-      await mutateInventory({ action: 'upsert', record, expectedVersion: editorVersion }); state.selected = record.location; state.dock = null;
+      await mutateInventory({ action: 'upsert', record, expectedVersion: editorVersion }); state.selected = record.location; state.selectedSection = record.section; state.dock = null;
       $('editor-dialog').close(); render();
-      toast('货物已保存到 ' + record.location + (recordsIn(record.location).reduce((n, r) => n + r.pallets, 0) > LANE_BY_ID[record.location].capacity ? '，托盘数超出图纸建议容量，请现场核对。' : '，其他成员将自动同步。'));
+      toast('货物已保存到 ' + locationLabel(record) + (recordsIn(record.location).filter(r => sectionOf(r) === record.section).reduce((n, r) => n + r.pallets, 0) > LANE_BY_ID[record.location].sections[record.section].capacity ? '，该半区托盘数超出图纸建议容量，请现场核对。' : '，其他成员将自动同步。'));
     } catch (error) { $('form-error').textContent = error.message; $('form-error').hidden = false; }
     finally { submit.disabled = false; }
   });
@@ -435,10 +467,10 @@
     const url = URL.createObjectURL(new Blob([content], { type }));
     const a = document.createElement('a'); a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  $('export-button').onclick = () => download(`bestar-inventory-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ format: 'bestar-warehouse-lanes', version: 3, mode: 'shared', revision: state.revision, exportedAt: new Date().toISOString(), records: state.records }, null, 2), 'application/json');
+  $('export-button').onclick = () => download(`bestar-inventory-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ format: 'bestar-warehouse-lanes', version: 4, mode: 'shared', revision: state.revision, exportedAt: new Date().toISOString(), records: state.records }, null, 2), 'application/json');
   $('csv-button').onclick = () => {
-    const rows = [['纵列', 'SKU', '商品', '货件号', '货主', '目的仓', '托盘数', '箱数', '状态', '更新时间']];
-    for (const r of tableItems()) rows.push(r.empty ? [r.location, '', '', '', '', '', 0, 0, '空闲', ''] : [r.location, r.sku, r.name, r.shipment, r.owner, r.destination, r.pallets, r.cartons, STATUS[r.status], r.updatedAt]);
+    const rows = [['纵列', '半区', 'SKU', '商品', '货件号', '货主', '目的仓', '托盘数', '箱数', '状态', '更新时间']];
+    for (const r of tableItems()) rows.push(r.empty ? [r.location, '', '', '', '', '', '', 0, 0, '空闲', ''] : [r.location, SECTIONS[sectionOf(r)], r.sku, r.name, r.shipment, r.owner, r.destination, r.pallets, r.cartons, STATUS[r.status], r.updatedAt]);
     download('bestar-inventory.csv', '\ufeff' + rows.map(row => row.map(csvCell).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
   };
   $('import-button').onclick = () => { $('import-file').value = ''; $('import-file').click(); };
@@ -471,14 +503,15 @@
       if (state.zone === 'all') setExtent('fba'); else focusZone(state.zone);
       render();
     }
-    if (button.dataset.locate) selectLane(button.dataset.locate, true);
+    if (button.dataset.locate) selectLane(button.dataset.locate, true, button.dataset.section);
+    if (button.hasAttribute('data-section-filter')) { state.selectedSection = button.dataset.sectionFilter || null; render(); }
     if (button.dataset.edit) openEditor(button.dataset.edit);
     if (button.dataset.add) openEditor(null, button.dataset.add);
     if (button.dataset.remove) {
       const record = state.records.find(r => r.id === button.dataset.remove);
       if (!record) return;
       const expectedVersion = state.versions[record.id];
-      confirmAction('移出此批货物', `将从 ${record.location} 移出「${record.name}」共 ${record.pallets} 托、${record.cartons} 箱，并同步至所有成员。`, async () => { await mutateInventory({ action: 'delete', id: record.id, expectedVersion }); render(); toast('此批货物已移出。'); }, '确认移出');
+      confirmAction('移出此批货物', `将从 ${locationLabel(record)} 移出「${record.name}」共 ${record.pallets} 托、${record.cartons} 箱，并同步至所有成员。`, async () => { await mutateInventory({ action: 'delete', id: record.id, expectedVersion }); render(); toast('此批货物已移出。'); }, '确认移出');
     }
   });
   $('add-button').onclick = () => openEditor();
@@ -524,8 +557,8 @@
     }
     const laneNode = event.target.closest('[data-location]');
     if (!laneNode || event.pointerType === 'touch') { $('map-tooltip').hidden = true; return; }
-    const records = recordsIn(laneNode.dataset.location);
-    $('map-tooltip').innerHTML = `<strong>${laneNode.dataset.location}</strong> · ${records.length} 批货物<br>${records.reduce((n, r) => n + r.pallets, 0)} 托盘 · 点击查看整列`;
+    const records = recordsIn(laneNode.dataset.location).filter(r => sectionOf(r) === laneNode.dataset.section);
+    $('map-tooltip').innerHTML = `<strong>${laneNode.dataset.location} · ${SECTIONS[laneNode.dataset.section]}</strong> · ${records.length} 批货物<br>${records.reduce((n, r) => n + r.pallets, 0)} 托盘 · 点击查看半区`;
     const stage = $('map-stage').getBoundingClientRect();
     $('map-tooltip').hidden = false;
     $('map-tooltip').style.left = Math.max(8, Math.min(event.clientX - stage.left + 16, stage.width - 200)) + 'px';
@@ -533,7 +566,7 @@
   });
   function activateMapNode(node) {
     if (!node) return;
-    if (node.dataset.location) selectLane(node.dataset.location);
+    if (node.dataset.location) selectLane(node.dataset.location, false, node.dataset.section);
     else if (node.dataset.dock) { state.dock = Number(node.dataset.dock); render(); }
   }
   svg.addEventListener('pointerup', event => {

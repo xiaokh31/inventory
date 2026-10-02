@@ -120,7 +120,7 @@ test('v1/v2 backups retain every physical lane and quantity when reversing the l
       const zone = m.ZONES.find(z => z.id === old.location[0]);
       const oldX = zone.x + (Number(old.location.slice(2)) - 1) * m.LANE_WIDTH;
       assert.ok(Math.abs(m.LANE_BY_ID[current.location].x - oldX) < 1e-8);
-      assert.deepEqual({ ...current, location: old.location }, old);
+      assert.deepEqual({ ...current, location: old.location }, { ...old, section: 'unspecified' });
     }
   }
 });
@@ -128,4 +128,34 @@ test('CSV output neutralizes formula prefixes and escapes quotes/newlines', () =
   assert.equal(m.csvCell('=1+1'), '"\'=1+1"');
   assert.equal(m.csvCell('hello,"world"'), '"hello,""world"""');
   assert.equal(m.csvCell('two\nlines'), '"two\nlines"');
+});
+
+test('each lane is split at its zone pillar row and pallet figures stay within their half', () => {
+  for (const lane of m.LANES) {
+    assert.equal(lane.splitY, { A: 1391, B: 1114, C: 837 }[lane.zone]);
+    assert.equal(lane.sections.upper.y + lane.sections.upper.height, lane.splitY);
+    assert.equal(lane.sections.lower.y, lane.splitY);
+    assert.equal(lane.sections.lower.y + lane.sections.lower.height, lane.y + lane.height);
+    assert.equal(lane.capacity, lane.sections.upper.capacity + lane.sections.lower.capacity);
+    for (const section of ['upper', 'lower']) {
+      assert.ok(lane.sections[section].capacity > 0);
+      for (const position of lane.sections[section].positions) {
+        assert.equal(position.section, section);
+        assert.ok(section === 'upper' ? position.y + position.height <= lane.splitY : position.y >= lane.splitY);
+      }
+    }
+  }
+});
+
+test('halves and optional SKU/FBA round-trip in v4; legacy records remain unassigned', () => {
+  const [old] = fixtures.records();
+  const upper = { ...old, section: 'upper', sku: '', shipment: '' };
+  const lower = { ...old, id: 'lower', section: 'lower', sku: undefined, shipment: undefined };
+  const data = m.validateRecords([upper, lower, { ...old, id: 'legacy' }]);
+  assert.equal(data[0].sku, ''); assert.equal(data[1].shipment, ''); assert.equal(data[2].section, 'unspecified');
+  assert.deepEqual(m.parseBackup(JSON.stringify({ format: 'bestar-warehouse-lanes', version: 4, records: data })).records, data);
+  assert.equal(m.parseBackup(JSON.stringify({ format: 'bestar-warehouse-lanes', version: 3, records: [old] })).records[0].section, 'unspecified');
+  assert.equal(m.queryRecords(data, 'all', 'all', '上半区').length, 1);
+  assert.equal(m.queryRecords(data, 'all', 'all', '下半区')[0].id, 'lower');
+  for (const patch of [{ section: 'middle' }, { section: '' }, { section: null }, { section: ['upper'] }, { sku: 12 }, { shipment: null }]) assert.throws(() => m.validateRecords([{ ...upper, ...patch }]));
 });
