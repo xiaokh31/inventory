@@ -4,6 +4,8 @@
 
 源码仓库：[xiaokh31/inventory](https://github.com/xiaokh31/inventory)，主分支 `main`。
 
+正式站点：[inventory-chi-mauve.vercel.app](https://inventory-chi-mauve.vercel.app/)。Vercel 连接独立 Neon PostgreSQL，公开访问，无需口令；云端与本机 Docker 的库存相互独立。
+
 本机统一使用 Docker 测试，部署支持 Docker 和 Vercel 两套方案，参见 [部署方案总览](docs/DEPLOYMENT.md)。HTML 内嵌原图、样式和脚本，但库存读写需要同站点 API 和数据库，不能双击 HTML 离线登记。
 
 ## 功能
@@ -70,4 +72,4 @@ docker compose --env-file .env.docker --profile test run --build --rm test
 
 测试容器依次运行 12 项模型/构建检查、5 项真实 PostgreSQL API 检查和实际应用 HTTP 检查。数据库检查创建随机隔离 schema；HTTP 检查只创建并移除自身唯一 ID 的临时货物，保留已有库存。不要在日常生产环境运行此测试服务。
 
-`tests/browser.cjs` 为可选只读浏览器检查，需要 Playwright，并显式设置 `BROWSER_TEST_URL`，访问 Docker 提供的网页，不启动宿主机应用。已验证容器重建持久化，以及备份恢复到临时数据库；临时数据均清理。验证边界见 [部署验证记录](docs/DEPLOYMENT_VERIFICATION.md)。未接入真实仓库库存，未执行 Vercel 云端部署。
+`tests/browser.cjs` 为可选只读浏览器检查，需要 Playwright，并显式设置 `BROWSER_TEST_URL`，访问 Docker 提供的网页，不启动宿主机应用。已验证容器重建持久化，以及备份恢复到临时数据库；临时数据均清理。Vercel 已上线并通过公开读写检查，云端临时记录已删除。尚未导入真实仓库库存，验证边界见 [部署验证记录](docs/DEPLOYMENT_VERIFICATION.md)。

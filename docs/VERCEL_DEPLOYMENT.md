@@ -4,6 +4,17 @@
 
 另一套为 [Docker 部署方案](DOCKER_DEPLOYMENT.md)。本机开发和测试统一在 Docker 中完成；本页说明 Vercel 的独立云端部署，不使用 Docker 数据卷作为云数据库。
 
+## 已上线实例
+
+- 正式地址：[inventory-chi-mauve.vercel.app](https://inventory-chi-mauve.vercel.app/)，无需登录。
+- Vercel 项目：`bestars-projects-3a180eb8/inventory`，Framework 为 **Other**，Node.js 24.x。
+- 数据库：独立 Neon `inventory-db`，Free 计划，区域 `iad1`；仅连接 Production 环境。Preview/Development 尚未配置云数据库，不会复用生产数据。
+- 生产 `DATABASE_URL` 由 Neon 集成注入，使用连接池端点；初始化通过 Docker 使用直连端点完成，未导入本机库存。
+- `APP_ORIGIN` 当前留空，按请求域名校验；已验证正式域名的同源写入。
+- 本次采用 CLI 发布。GitHub 仓库已同步，Vercel Git 连接返回「需要添加 GitHub Login Connection」，因此自动部署尚未启用。
+
+后续更新：先运行 Docker 检查并推送 `main`，再执行 `npx vercel deploy --prod --scope bestars-projects-3a180eb8`。若要启用 Git 自动部署，在 Vercel 账号绑定 GitHub 登录连接后执行 `npx vercel git connect https://github.com/xiaokh31/inventory.git --yes --scope bestars-projects-3a180eb8`。
+
 ## 1. 部署组成
 
 本版包含 `dist/index.html` 前端、`api/inventory.js`、`api/health.js` 两个服务端函数及独立 PostgreSQL 数据库。不能只上传 HTML；API 将库存写入数据库，所有成员通过同一站点共享数据。
@@ -55,6 +66,8 @@ Root Directory 指向同时包含 `package.json`、`vercel.json`、`api/` 的项
 | Output Directory | `dist` |
 
 `package.json` 已指定 Node.js 24，参见 [Supported Node.js versions](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions)。`vercel.json` 同时配置 API 执行时间。不要将 `npm start` 设为构建命令。
+
+Vercel CLI 可能因仓库中有 Dockerfile 自动识别成 Container；本项目在 Vercel 必须使用 Other，保留 Dockerfile 供本机和自有服务器部署。
 
 保留 `api/`、`server/`、`src/`、`scripts/build.cjs`、`assets/brand-wordmark.png`、底图 PNG、`package.json`、`package-lock.json`、`vercel.json`，`db/` 用于初始化。`.vercelignore` 排除密钥、本地数据库、截图、测试和文档，部署时重新生成 dist。
 
@@ -125,4 +138,6 @@ npx vercel --prod
 
 本机已改为 Docker，应用和 PostgreSQL 均在容器内运行。测试容器中的 12 项模型/构建检查、5 项真实数据库接口检查及运行中容器 HTTP 检查通过。已验证移除并重建容器后库存持久保留，以及数据库备份恢复；详情见 [部署验证记录](DEPLOYMENT_VERIFICATION.md)。
 
-尚未创建 Vercel 项目、连接云数据库或执行线上部署；未导入真实库存、未校核现场库容。配置真实云端 DATABASE_URL 并部署后，仍需按第 6 节进行跨设备线上验收。
+2026-10-02 已发布上述正式站点，首页及健康检查返回 HTTP 200，数据库连接正常。通过 Docker 对正式域名完成无 Cookie 的双客户端读写、目的仓、移库、过期版本冲突及删除测试；唯一临时记录已删除，复查云端库存为 0 条。浏览器无需登录即可显示「共享库存 · 已连接」，入库入口可用。
+
+未导入真实库存、未校核现场库容；本次双客户端为 HTTP 客户端验证，仓库现场不同设备仍可按第 6 节验收。Vercel Git 自动部署尚未连接，当前通过 CLI 更新。

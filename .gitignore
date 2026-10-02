@@ -9,3 +9,5 @@ dist/
 backups/
 data/
 .cache/
+.agents/
+skills-lock.json

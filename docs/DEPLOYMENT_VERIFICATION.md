@@ -1,6 +1,6 @@
 # 部署验证记录
 
-日期：2026-10-02。验证环境：Windows Docker Desktop，Linux 容器。
+日期：2026-10-02。本机验证环境：Windows Docker Desktop，Linux 容器；云端：Vercel + 独立 Neon PostgreSQL。
 
 ## 已通过
 
@@ -27,4 +27,15 @@
 
 ## 未执行
 
-尚未在 Vercel 云端发布、接入真实云数据库、对真实库存进行验收，也未向真实域名签发服务器 HTTPS 证书。Docker HTTPS 配置仅用于准备部署，实际启用需真实 DNS 和 80/443 端口条件。原图容量仍需现场核对。
+未对真实库存进行验收，也未启用自有服务器的 Caddy HTTPS 或自定义域名。Docker HTTPS 配置仅用于准备部署，实际启用需真实 DNS 和 80/443 端口条件。原图容量仍需现场核对。
+
+## Vercel 生产发布
+
+- 正式站点：https://inventory-chi-mauve.vercel.app/，项目 `inventory`，团队 `bestars-projects-3a180eb8`。
+- 首次生产部署 `dpl_8vWy1wuyLySiqnsbx8tBDjLkz4RP` 状态 READY，两个 Node.js API 函数位于 `iad1`。
+- 独立 Neon `inventory-db` 使用 Free 计划、`iad1` 区域，仅连接 Production；初始化未插入示例货物。
+- 无登录 Cookie 访问首页及 `/api/health` 返回 200；`/api/inventory` 可公开读取。
+- 在 Docker 中运行正式站点 HTTP 检查，使用同源 Origin：新增、双客户端读取、目的仓修改、移库、过期版本 409 和删除通过。
+- 测试仅使用 `deploy-smoke-vercel-20261002`，结束后删除。复查云端记录为 0，测试记录为 0，修订号为 3。
+- 浏览器直接进入工作台，显示「共享库存 · 已连接」，入库按钮可用；无登录弹窗。
+- GitHub `xiaokh31/inventory` 已推送 main。Vercel Git 自动连接缺少账号的 GitHub Login Connection，目前使用 CLI 发布。

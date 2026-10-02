@@ -9,7 +9,7 @@ const id = process.env.SMOKE_RECORD_ID || 'deploy-smoke-' + crypto.randomUUID();
 if (!/^deploy-smoke-[a-z0-9-]+$/.test(id)) throw new Error('Only deploy-smoke IDs may be used.');
 if (mode !== 'full' && !process.env.SMOKE_RECORD_ID) throw new Error('Persistence checks require the same explicit SMOKE_RECORD_ID.');
 async function request(route, method = 'GET', body) {
-  const response = await fetch(origin + route, { method, headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(10000) });
+  const response = await fetch(origin + route, { method, headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(method === 'GET' ? {} : { Origin: new URL(origin).origin }) }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(10000) });
   return { status: response.status, data: await response.json(), cookie: response.headers.get('set-cookie')?.split(';')[0] };
 }
 (async () => {
