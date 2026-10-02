@@ -38,6 +38,58 @@
   const LANES = createLanes();
   const LANE_BY_ID = Object.fromEntries(LANES.map(lane => [lane.id, lane]));
   const STATUS = { stored: '在库', outbound: '待出库', reserved: '预留', empty: '空闲' };
+  const colorKey = value => (value || '').trim().normalize('NFKC').toUpperCase();
+  function colorHash(value) {
+    let hash = 2166136261;
+    for (let i = 0; i < value.length; i++) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
+    hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b);
+    hash = Math.imul(hash ^ (hash >>> 13), 0xc2b2ae35);
+    return (hash ^ (hash >>> 16)) >>> 0;
+  }
+  const colorId = record => JSON.stringify([colorKey(record.destination), colorKey(record.container)]);
+  function cargoColor(record, palette) {
+    if (palette?.has(colorId(record))) return palette.get(colorId(record));
+    // Name-seeded candidates are stable; the full inventory palette separates close colors.
+    const destination = colorKey(record.destination), container = colorKey(record.container);
+    const hue = destination ? Number((colorHash('destination:' + destination) / 4294967296 * 360).toFixed(3)) : 0;
+    const variant = colorHash('container:' + container);
+    const saturation = destination ? 60 + variant % 17 : 0;
+    const lightness = container ? Number((44 + (variant >>> 8) / 16777216 * 30).toFixed(3)) : 60;
+    return { hue, saturation, lightness, fill: `hsl(${hue} ${saturation}% ${lightness}%)`, base: `hsl(${hue} ${destination ? 68 : 0}% 56%)`, stroke: `hsl(${hue} ${destination ? 48 : 0}% 32%)` };
+  }
+  function createCargoPalette(records) {
+    const groups = new Map(), palette = new Map(), hues = [];
+    for (const record of records) {
+      const destination = colorKey(record.destination), container = colorKey(record.container);
+      if (!groups.has(destination)) groups.set(destination, new Map());
+      groups.get(destination).set(container, record);
+    }
+    const stableOrder = (a, b) => colorHash(a) - colorHash(b) || (a < b ? -1 : a > b ? 1 : 0);
+    const gap = (a, b) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
+    for (const destination of [...groups.keys()].sort(stableOrder)) {
+      const containers = groups.get(destination), example = containers.values().next().value;
+      let hue = cargoColor(example).hue;
+      // Keep the common small set of warehouses visibly distinct before the hue space fills up.
+      if (destination && hues.length && hues.length < 24) {
+        const distance = candidate => Math.min(...hues.map(other => gap(candidate, other)));
+        if (distance(hue) < 32) hue = Array.from({ length: 72 }, (_, i) => (hue + i * 5) % 360).reduce((best, candidate) => distance(candidate) > distance(best) ? candidate : best, hue);
+      }
+      hue = Number(hue.toFixed(3));
+      if (destination) hues.push(hue);
+      const shades = [];
+      for (const container of [...containers.keys()].sort((a, b) => a === '' ? -1 : b === '' ? 1 : stableOrder(a, b))) {
+        const record = containers.get(container), color = cargoColor(record);
+        let lightness = color.lightness;
+        if (shades.length && shades.length < 8) {
+          const distance = candidate => Math.min(...shades.map(other => Math.abs(candidate - other)));
+          if (distance(lightness) < 8) lightness = Array.from({ length: 61 }, (_, i) => 44 + i * .5).reduce((best, candidate) => distance(candidate) > distance(best) ? candidate : best, lightness);
+        }
+        shades.push(lightness);
+        palette.set(colorId(record), { ...color, hue, lightness, fill: `hsl(${hue} ${color.saturation}% ${lightness}%)`, base: `hsl(${hue} ${destination ? 68 : 0}% 56%)`, stroke: `hsl(${hue} ${destination ? 48 : 0}% 32%)` });
+      }
+    }
+    return palette;
+  }
   function validateRecords(input) {
     if (!Array.isArray(input) || input.length > 10000) throw new Error('库存必须是数组，且不超过 10,000 条。');
     const ids = new Set();
@@ -103,7 +155,7 @@
     const x = Math.min(...points.map(p => p.x)), y = Math.min(...points.map(p => p.y));
     return { x, y, w: Math.max(...points.map(p => p.x)) - x, h: Math.max(...points.map(p => p.y)) - y };
   }
-  const model = { PX_PER_M, LANE_WIDTH, PALLET_WIDTH, PALLET_DEPTH, ZONES, COLUMNS, DOCKS, LANES, LANE_BY_ID, STATUS, SECTIONS, sectionOf, locationLabel, intersects, validateRecords, parseBackup, queryRecords, summaries, csvCell, loadInventory, rotatePoint, rotateBounds };
+  const model = { PX_PER_M, LANE_WIDTH, PALLET_WIDTH, PALLET_DEPTH, ZONES, COLUMNS, DOCKS, LANES, LANE_BY_ID, STATUS, SECTIONS, sectionOf, locationLabel, colorKey, cargoColor, createCargoPalette, intersects, validateRecords, parseBackup, queryRecords, summaries, csvCell, loadInventory, rotatePoint, rotateBounds };
   if (typeof module !== 'undefined' && module.exports) module.exports = model;
   if (typeof document === 'undefined') return;
 
@@ -254,16 +306,16 @@
         const active = selected && (!state.selectedSection || state.selectedSection === section);
         const half = add(g, 'g', { class: `lane-half${active ? ' selected' : ''}`, 'data-location': lane.id, 'data-section': section, role: 'button', tabindex: 0, 'aria-label': `${lane.id} ${SECTIONS[section]}，${halfRecords.reduce((n, r) => n + r.pallets, 0)} 托盘，${halfRecords.length} 批货物`, 'aria-pressed': active });
         add(half, 'rect', { x: lane.x + 1.5, y: area.y + 1.5, width: lane.width - 3, height: area.height - 3, rx: 1.6, class: 'lane-hit' });
-        const statuses = [];
+        const painted = [];
         for (const record of halfRecords) {
-          const count = Math.min(record.pallets, area.capacity - statuses.length);
-          for (let i = 0; i < count; i++) statuses.push(record.status);
+          const count = Math.min(record.pallets, area.capacity - painted.length), color = cargoColor(record, state.colors);
+          for (let i = 0; i < count; i++) painted.push({ record, color });
         }
         area.positions.forEach((position, index) => {
-          const status = statuses[index] || 'empty';
+          const item = painted[index];
           const rect = { x: position.x + .4, y: position.y + .7, width: position.width - .8, height: position.height - 1.4 };
-          add(half, 'rect', { ...rect, rx: 1, class: `pallet-${status}`, 'pointer-events': 'none' });
-          if (status !== 'empty') for (const fraction of [.33, .66]) add(half, 'line', { x1: rect.x + 2, y1: rect.y + rect.height * fraction, x2: rect.x + rect.width - 2, y2: rect.y + rect.height * fraction, class: 'pallet-slat' });
+          add(half, 'rect', { ...rect, rx: 1, class: item ? 'pallet-occupied' : 'pallet-empty', ...(item ? { fill: item.color.fill, stroke: item.color.stroke, 'data-status': item.record.status, 'data-cargo-id': item.record.id } : {}), 'pointer-events': 'none' });
+          if (item) for (const fraction of [.33, .66]) add(half, 'line', { x1: rect.x + 2, y1: rect.y + rect.height * fraction, x2: rect.x + rect.width - 2, y2: rect.y + rect.height * fraction, class: 'pallet-slat' });
         });
         add(half, 'title', {}, `${lane.id} · ${SECTIONS[section]} · ${halfRecords.length} 批货物`);
       }
@@ -298,8 +350,23 @@
       return `<button class="zone-card" data-zone="${zone.id}"><span class="zone-letter">${zone.id}</span><span class="zone-card-body"><span class="zone-card-title">${zone.id} 区<span>${occupied} / 15 列已用</span></span><span class="zone-card-bar"><i style="width:${occupied / 15 * 100}%"></i></span><span class="zone-card-bottom"><span>${records.reduce((n, r) => n + r.pallets, 0)} 托盘 · ${records.length} 批货物</span><span>${15 - occupied} 列空闲</span></span></span><span class="zone-card-arrow">↗</span></button>`;
     }).join('');
   }
+  function colorSwatch(record, base = false) {
+    const color = cargoColor(record, state.colors);
+    return `<i class="cargo-swatch" style="background:${base ? color.base : color.fill};border-color:${color.stroke}" aria-hidden="true"></i>`;
+  }
+  function renderColorLegend() {
+    const groups = new Map();
+    for (const record of queryRecords(state.records, state.zone, state.status, state.query)) {
+      const key = colorKey(record.destination), container = colorKey(record.container);
+      if (!groups.has(key)) groups.set(key, { record, containers: new Map() });
+      const group = groups.get(key);
+      if (!group.containers.has(container)) group.containers.set(container, { record, pallets: 0 });
+      group.containers.get(container).pallets += record.pallets;
+    }
+    $('destination-legend').innerHTML = groups.size ? `<div class="color-legend-heading">目的仓 / 柜号配色 <span>同仓同色系 · 不同柜号以深浅区分 · 状态见货物详情</span></div><div class="color-legend-list">${[...groups].sort(([a], [b]) => a.localeCompare(b)).map(([, group]) => `<div class="destination-color-group"><strong>${colorSwatch(group.record, true)}${esc(group.record.destination || '目的仓未填写')}</strong><div>${[...group.containers].sort(([a], [b]) => a.localeCompare(b)).map(([, item]) => `<span class="container-color-key">${colorSwatch(item.record)}<span>${esc(item.record.container || '柜号未填写')}</span><small>${fmt(item.pallets)} 托</small></span>`).join('')}</div></div>`).join('')}</div>` : `<p class="color-legend-empty">${state.records.length ? '当前筛选没有货物配色' : '登记货物后显示目的仓与柜号颜色图例'}</p>`;
+  }
   function cargoCard(record) {
-    return `<article class="cargo-card"><div class="cargo-card-top"><h3>${esc(record.name)}</h3><span class="badge ${record.status}">${STATUS[record.status]}</span></div><p class="cargo-sku">${esc(record.sku || 'SKU 未填写')}</p><div class="cargo-field"><span>所在半区</span><strong>${SECTIONS[sectionOf(record)]}</strong></div><div class="cargo-field"><span>货件号</span><strong>${esc(record.shipment || '—')}</strong></div><div class="cargo-field"><span>柜号</span><strong>${esc(record.container || '未填写')}</strong></div><div class="cargo-field"><span>目的仓</span><strong>${esc(record.destination || '未填写')}</strong></div><div class="cargo-field"><span>货主</span><strong>${esc(record.owner || '—')}</strong></div><div class="cargo-field"><span>数量</span><strong>${fmt(record.pallets)} 托 / ${fmt(record.cartons)} 箱</strong></div>${record.notes ? `<p class="cargo-notes">${esc(record.notes)}</p>` : ''}<div class="cargo-card-actions"><button data-edit="${esc(record.id)}">编辑 / 移库 ↗</button><button class="remove-cargo" data-remove="${esc(record.id)}">移出此批</button></div></article>`;
+    return `<article class="cargo-card colored-cargo" style="--cargo-color:${cargoColor(record, state.colors).fill}"><div class="cargo-card-top"><h3>${esc(record.name)}</h3><span class="badge ${record.status}">${STATUS[record.status]}</span></div><p class="cargo-sku">${esc(record.sku || 'SKU 未填写')}</p><div class="cargo-field"><span>所在半区</span><strong>${SECTIONS[sectionOf(record)]}</strong></div><div class="cargo-field"><span>货件号</span><strong>${esc(record.shipment || '—')}</strong></div><div class="cargo-field"><span>柜号</span><strong>${colorSwatch(record)}${esc(record.container || '未填写')}</strong></div><div class="cargo-field"><span>目的仓</span><strong>${colorSwatch(record, true)}${esc(record.destination || '未填写')}</strong></div><div class="cargo-field"><span>货主</span><strong>${esc(record.owner || '—')}</strong></div><div class="cargo-field"><span>数量</span><strong>${fmt(record.pallets)} 托 / ${fmt(record.cartons)} 箱</strong></div>${record.notes ? `<p class="cargo-notes">${esc(record.notes)}</p>` : ''}<div class="cargo-card-actions"><button data-edit="${esc(record.id)}">编辑 / 移库 ↗</button><button class="remove-cargo" data-remove="${esc(record.id)}">移出此批</button></div></article>`;
   }
   function renderDetail() {
     if (state.dock) {
@@ -330,7 +397,7 @@
     state.page = Math.min(state.page, Math.max(0, Math.ceil(items.length / 15) - 1));
     const start = state.page * 15;
     $('table-caption').textContent = `${state.status === 'empty' ? '空闲纵列' : '按货物批次列出'} · 当前筛选 ${items.length} 条`;
-    $('inventory-body').innerHTML = items.slice(start, start + 15).map(r => r.empty ? `<tr><td><button class="location-link" data-locate="${r.location}">${r.location}</button></td><td colspan="6">暂无货物</td><td><span class="badge empty">空闲</span></td><td>—</td><td><button class="table-edit" data-add="${r.location}">登记货物</button></td></tr>` : `<tr><td><button class="location-link" data-locate="${r.location}" data-section="${sectionOf(r)}">${locationLabel(r)} ↗</button></td><td>${esc(r.sku || "—")}<small>${esc(r.name)}</small></td><td>${esc(r.shipment || '—')}</td><td>${esc(r.container || '未填写')}</td><td>${esc(r.owner || '—')}</td><td>${esc(r.destination || '未填写')}</td><td>${fmt(r.pallets)}<small>${fmt(r.cartons)} 箱</small></td><td><span class="badge ${r.status}">${STATUS[r.status]}</span></td><td>${new Date(r.updatedAt).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' })}</td><td><button class="table-edit" data-edit="${esc(r.id)}">编辑</button></td></tr>`).join('') || '<tr><td colspan="10" class="table-empty">没有符合条件的货物或纵列</td></tr>';
+    $('inventory-body').innerHTML = items.slice(start, start + 15).map(r => r.empty ? `<tr><td><button class="location-link" data-locate="${r.location}">${r.location}</button></td><td colspan="6">暂无货物</td><td><span class="badge empty">空闲</span></td><td>—</td><td><button class="table-edit" data-add="${r.location}">登记货物</button></td></tr>` : `<tr><td><button class="location-link" data-locate="${r.location}" data-section="${sectionOf(r)}">${locationLabel(r)} ↗</button></td><td>${esc(r.sku || "—")}<small>${esc(r.name)}</small></td><td>${esc(r.shipment || '—')}</td><td>${colorSwatch(r)}${esc(r.container || '未填写')}</td><td>${esc(r.owner || '—')}</td><td>${colorSwatch(r, true)}${esc(r.destination || '未填写')}</td><td>${fmt(r.pallets)}<small>${fmt(r.cartons)} 箱</small></td><td><span class="badge ${r.status}">${STATUS[r.status]}</span></td><td>${new Date(r.updatedAt).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' })}</td><td><button class="table-edit" data-edit="${esc(r.id)}">编辑</button></td></tr>`).join('') || '<tr><td colspan="10" class="table-empty">没有符合条件的货物或纵列</td></tr>';
     $('pagination-info').textContent = items.length ? `${start + 1}–${Math.min(start + 15, items.length)} / 共 ${items.length} 条` : '共 0 条';
     $('prev-page').disabled = state.page === 0;
     $('next-page').disabled = start + 15 >= items.length;
@@ -344,7 +411,8 @@
     $('clear-search').onclick = () => { state.query = ''; state.status = 'all'; $('search-input').value = ''; $('status-filter').value = 'all'; state.page = 0; render(); };
   }
   function render() {
-    renderStats(); renderLanes(); renderDetail(); renderTable(); renderSearch();
+    state.colors = createCargoPalette(state.records);
+    renderStats(); renderLanes(); renderDetail(); renderTable(); renderSearch(); renderColorLegend();
     orientLabels();
     document.querySelectorAll('[data-edit],[data-add],[data-remove],#add-to-lane').forEach(button => { button.disabled = !state.online; });
     if (!state.loaded) {
@@ -520,7 +588,7 @@
   $('layout-info-button').onclick = () => $('info-dialog').showModal();
   $('prev-page').onclick = () => { state.page--; renderTable(); };
   $('next-page').onclick = () => { state.page++; renderTable(); };
-  $('search-input').addEventListener('input', event => { state.query = event.target.value; state.page = 0; renderLanes(); renderSearch(); renderTable(); });
+  $('search-input').addEventListener('input', event => { state.query = event.target.value; state.page = 0; renderLanes(); renderSearch(); renderTable(); renderColorLegend(); });
   $('search-input').addEventListener('keydown', event => { if (event.key === 'Enter') { const first = matchingLanes()[0]; if (first) selectLane(first.id, true); } });
   $('status-filter').onchange = event => { state.status = event.target.value; state.page = 0; render(); };
   document.addEventListener('keydown', event => {

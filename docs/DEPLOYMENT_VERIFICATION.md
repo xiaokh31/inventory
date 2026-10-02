@@ -2,7 +2,16 @@
 
 日期：2026-10-02。本机验证环境：Windows Docker Desktop，Linux 容器；云端：Vercel + 独立 Neon PostgreSQL。
 
-## 柜号与托盘优先显示
+## 目的仓/柜号配色与生产库存清空
+
+- 地图托盘、详情色块和台账按目的仓使用随机主色，同仓不同柜号使用同一色相下的不同深浅；地图下方显示目的仓/柜号图例。状态继续以文字标签显示。
+- 按完整库存中的目的仓/柜号组合生成配色，名称忽略首尾空格、大小写及全半角差异；刷新、筛选及库存记录顺序不影响配色。对相近主色和柜号深浅进行间隔调整，新添或移除分组可能触发重新分配；未填写目的仓使用灰色。
+- Docker：18 项模型/构建检查、5 项真实 PostgreSQL API 检查及应用 HTTP 检查通过。日志：`artifacts/docker-destination-colors-test.log`。
+- 浏览器用 4 条本机临时记录核对：两目的仓主色明显不同；同仓两个柜号深浅不同；同仓同柜跨列颜色一致；刷新前后 SVG 填充颜色一致。截图：`artifacts/destination-colors-local-test.png`。
+- 4 条浏览器临时记录已按唯一 ID 单独删除，本机数据库为 0 条，`inventory_test_*` schema 残留为 0。
+- 用户明确要求清空生产数据：已通过正式站点 API、带全仓修订号校验，移除 7 条货物；操作后复查为 0 条、修订号 18。保留数据库、表结构和部署配置，代码不包含自动清库逻辑。
+
+## 柜号与托盘优先显示（前次）
 
 - 新增选填柜号，保存于记录 JSONB，无需修改表结构。缺少该字段的旧记录显示未填写；支持编辑、搜索、JSON 备份和 CSV 导出。
 - 库存概览大号数字显示托盘数，箱数移至下方；入库表单托盘在前、箱数在后，台账以托盘数为主、箱数为补充。
@@ -42,7 +51,7 @@
 - `migrate`：Exited (0)，正常完成初始化。
 - 数据卷：`bestar-inventory_postgres_data`。
 - 访问方式：公开读写，无需登录、口令或会话 Cookie。
-- 早期测试日志：`artifacts/docker-public-test.log`、`artifacts/docker-test.log`；最新半区版日志见上文。
+- 早期测试日志：`artifacts/docker-public-test.log`、`artifacts/docker-test.log`；最新配色版日志见上文。
 
 ## 未执行
 

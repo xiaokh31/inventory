@@ -17,6 +17,7 @@ async function request(route, method = 'GET', body) {
   const home = await fetch(origin, { signal: AbortSignal.timeout(10000) });
   assert.equal(home.status, 200); const html = await home.text();
   assert.match(html, /id="rotate-right"/); assert.match(html, /id="cargo-destination"/); assert.match(html, /id="cargo-container"/);
+  assert.match(html, /id="destination-legend"/);
   assert.equal((await request('/api/inventory')).status, 200);
   assert.doesNotMatch(html, /id="login-dialog"|id="logout-button"/);
   const record = { id, location: 'A-01', section: 'upper', sku: '', name: 'Docker 临时验证记录', shipment: '', container: 'TEST-CONTAINER-001', owner: '', destination: 'ONT8', pallets: 1, cartons: 12, status: 'stored', notes: '自动检查结束后清理', updatedAt: new Date().toISOString() };

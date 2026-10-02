@@ -173,3 +173,40 @@ test('container number is optional for old records and survives search and backu
   assert.deepEqual(m.parseBackup(JSON.stringify({ format: 'bestar-warehouse-lanes', version: 4, records: data })).records, data);
   for (const container of [null, 123, [], 'x'.repeat(81)]) assert.throws(() => m.validateRecords([{ ...old, container }]));
 });
+
+test('destination colors stay stable across refresh inputs, quantities, status and movements', () => {
+  const record = { destination: 'ONT8', container: 'CONT-001', status: 'stored', location: 'A-01' };
+  const color = m.cargoColor(record);
+  assert.deepEqual(m.cargoColor({ ...record, destination: '  ｏｎｔ８  ', container: ' cont-001 ' }), color);
+  assert.deepEqual(m.cargoColor({ ...record, location: 'C-15', section: 'lower', status: 'outbound', pallets: 20 }), color);
+  assert.notEqual(m.cargoColor({ ...record, destination: 'LAX9' }).hue, color.hue);
+  assert.match(color.fill, /^hsl\([\d.]+ [\d.]+% [\d.]+%\)$/);
+});
+
+test('containers share a destination hue with distinct shades; missing destinations use gray', () => {
+  const colors = Array.from({ length: 40 }, (_, i) => m.cargoColor({ destination: 'ONT8', container: 'CONT-' + i }));
+  assert.equal(new Set(colors.map(color => color.hue)).size, 1);
+  assert.equal(new Set(colors.map(color => color.fill)).size, colors.length);
+  assert.ok(colors.every(color => color.lightness >= 44 && color.lightness <= 74 && color.saturation >= 60));
+  assert.deepEqual(m.cargoColor({}), m.cargoColor({ destination: ' ', container: '' }));
+  assert.equal(m.cargoColor({ container: 'CONT-001' }).saturation, 0);
+  assert.notEqual(m.cargoColor({ container: 'CONT-001' }).fill, m.cargoColor({ container: 'CONT-002' }).fill);
+  assert.equal(m.cargoColor({ destination: 'ONT8' }).lightness, 60);
+});
+
+test('the shared inventory palette separates close warehouses and containers independent of record order', () => {
+  const records = [
+    { destination: 'ONT8', container: 'CONT-001' },
+    { destination: 'ONT8', container: 'CONT-002' },
+    { destination: 'LAX9', container: 'CONT-003' }
+  ];
+  const palette = m.createCargoPalette(records), reversed = m.createCargoPalette([...records].reverse());
+  const colors = records.map(record => m.cargoColor(record, palette));
+  assert.equal(colors[0].hue, colors[1].hue);
+  assert.ok(Math.abs(colors[0].lightness - colors[1].lightness) >= 8);
+  const difference = Math.abs(colors[0].hue - colors[2].hue);
+  assert.ok(Math.min(difference, 360 - difference) >= 32);
+  for (const record of records) assert.deepEqual(m.cargoColor(record, palette), m.cargoColor(record, reversed));
+  const changed = m.createCargoPalette([...records, { ...records[0], destination: ' ont8 ', container: 'cont-001', location: 'C-15', pallets: 8 }]);
+  for (const record of records) assert.deepEqual(m.cargoColor(record, palette), m.cargoColor(record, changed));
+});
