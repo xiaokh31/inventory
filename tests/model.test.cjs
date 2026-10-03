@@ -211,24 +211,31 @@ test('the shared inventory palette separates close warehouses and containers ind
   for (const record of records) assert.deepEqual(m.cargoColor(record, palette), m.cargoColor(record, changed));
 });
 
-test('every pre-upgrade pallet coordinate remains identical and database fields are not renumbered', () => {
-  const baseline = require('./legacy-layout-v1.json');
+test('legacy inventory retains its stored lane ID and snaps to that same lane in the current grid', () => {
   for (const lane of m.LEGACY_LANES) for (const section of ['upper', 'lower']) {
     const original = { ...fixtures.records()[0], location: lane.id, section, pallets: 100 };
     const serialized = JSON.stringify(original);
     const figures = m.palletFigures([original]);
-    assert.deepEqual(figures.map(item => item.position), baseline.positions[lane.id][section].positions);
+    const current = m.LANE_BY_ID[lane.id];
+    assert.deepEqual(figures.map(item => item.position), current.sections[section].positions);
+    assert.ok(figures.every(item => item.location === original.location));
+    for (const item of figures) assert.ok(Math.abs(item.position.x + item.position.width / 2 - (current.x + current.width / 2)) < 1e-8);
+    assert.deepEqual(m.palletFigures([{ ...original, layoutVersion: 1 }]).map(item => item.position), figures.map(item => item.position));
+    assert.deepEqual(m.palletFigures([{ ...original, layoutVersion: 2 }]).map(item => item.position), figures.map(item => item.position));
     assert.equal(JSON.stringify(original), serialized);
     assert.equal(m.validateRecords([original])[0].location, lane.id);
     assert.equal(Object.hasOwn(m.validateRecords([original])[0], 'layoutVersion'), false);
   }
-  assert.deepEqual(m.LEGACY_LANES.slice(0, 15).map(lane => m.recordLaneId({ location: lane.id })), ['A-02','A-03','A-04','A-05','A-06','A-08','A-09','A-10','A-11','A-12','A-14','A-15','A-16','A-17','A-18']);
+  assert.deepEqual(m.LEGACY_LANES.map(lane => m.recordLaneId({ location: lane.id })), m.LEGACY_LANES.map(lane => lane.id));
+  assert.equal(m.recordLaneId({ location: 'A-01' }), 'A-01');
+  assert.equal(m.recordLaneId({ location: 'C-15' }), 'C-15');
 });
 
-test('metadata edits and half-only moves preserve old horizontal anchors; explicit lane moves use layout 2', () => {
+test('metadata and half-only edits preserve stored lane IDs; explicit lane moves use layout 2', () => {
   const old = { ...fixtures.records()[0], location: 'A-01', section: 'upper' };
-  assert.deepEqual(m.placementForEdit(old, 'A-02', 'upper'), { location: 'A-01' });
-  assert.deepEqual(m.placementForEdit(old, 'A-02', 'lower'), { location: 'A-01' });
+  assert.deepEqual(m.placementForEdit(old, 'A-01', 'upper'), { location: 'A-01' });
+  assert.deepEqual(m.placementForEdit(old, 'A-01', 'lower'), { location: 'A-01' });
+  assert.deepEqual(m.placementForEdit(old, 'A-02', 'upper'), { location: 'A-02', layoutVersion: 2 });
   assert.deepEqual(m.placementForEdit(old, 'A-19', 'upper'), { location: 'A-19', layoutVersion: 2 });
   assert.deepEqual(m.placementForEdit(null, 'C-19', 'lower'), { location: 'C-19', layoutVersion: 2 });
 });
@@ -240,7 +247,7 @@ test('mixed layouts round-trip in v5 backups without changing positions or inven
   const backup = m.parseBackup(JSON.stringify({ format: 'bestar-warehouse-lanes', version: 5, records: data })).records;
   assert.deepEqual(backup, data);
   assert.deepEqual(m.palletFigures(backup), m.palletFigures(data));
-  assert.equal(m.summaries(data).occupied, 1);
+  assert.equal(m.summaries(data).occupied, 2);
   assert.equal(m.summaries(data).pallets, 2);
   const figures = m.palletFigures(data);
   assert.equal(figures.length, 2);
@@ -249,4 +256,15 @@ test('mixed layouts round-trip in v5 backups without changing positions or inven
   assert.throws(() => m.validateRecords([{ ...old, layoutVersion: 3 }]));
   assert.equal(m.validateRecords([{ ...fresh, location: 'C-19' }])[0].location, 'C-19');
   assert.throws(() => m.parseBackup(JSON.stringify({ format: 'bestar-warehouse-lanes', version: 4, records: data })));
+});
+
+test('mixed-age batches in the same half allocate consecutive non-overlapping current slots', () => {
+  const base = { ...fixtures.records()[0], location: 'A-03', section: 'upper', pallets: 1 };
+  const records = [base, { ...base, id: 'new', layoutVersion: 2 }, { ...base, id: 'v1', layoutVersion: 1 }];
+  const figures = m.palletFigures(records);
+  assert.deepEqual(figures.map(item => item.record.id), records.map(item => item.id));
+  assert.deepEqual(figures.map(item => item.position), m.LANE_BY_ID['A-03'].sections.upper.positions.slice(0, 3));
+  assert.equal(m.summaries(records).occupied, 1);
+  assert.equal(m.queryRecords(records, 'all', 'all', 'A-04').length, 0);
+  assert.equal(m.queryRecords(records, 'all', 'all', 'A-03').length, 3);
 });

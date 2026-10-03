@@ -98,10 +98,7 @@
   "半区": "Half-lane",
   "半区应为 upper、lower 或 unspecified。": "Half-lane must be upper, lower or unspecified.",
   "原图": "Original plan",
-  "原图方点为承重柱，新网格中心对齐柱子。旧库存的原编号和托盘坐标保留，新列号按原位置对应；修改货物信息不会自动移动已有货物。": "Square markers are structural pillars. New lane centers align with the pillars. Existing cargo retains its original reference and pallet coordinates, with new lane labels derived from those positions. Editing cargo details does not move it.",
   "原编号": "Original lane",
-  "原编号 {0} · 位置保留": "Original {0} · Position retained",
-  "原编号 {0} 对应新列 {1}，货物位置保留。仅修改信息或半区不会改变横向位置；选择其他纵列才按新列移库。": "Original lane {0} corresponds to new lane {1}; its position is retained. Editing details or the half-lane keeps the horizontal position. Selecting a different lane relocates it onto the new grid.",
   "发现旧浏览器库存但无法解析，原数据保留，请使用原版页面导出备份。": "Older browser inventory could not be read. It has been retained; export it from the previous app.",
   "取消": "Cancel",
   "可安排入库": "Available for incoming cargo",
@@ -292,5 +289,7 @@
   "（此文件来自旧版演示模式）": " (from the previous demo mode)",
   "＋ 向{13}登记货物": "＋ Add cargo to {13}",
   "，其他成员将自动同步。": "; other users will sync automatically.",
-  "，该半区托盘数超出图纸建议容量，请现场核对。": "; this half exceeds estimated capacity. Check on site."
+  "，该半区托盘数超出图纸建议容量，请现场核对。": "; this half exceeds estimated capacity. Check on site.",
+  "原图方点为承重柱，新网格中心对齐柱子。所有库存均按登记的库位编号对齐当前网格，上下半区不变；修改货物信息不会更改库位编号。": "Square dots are structural pillars. Grid centers align with the pillars. All inventory aligns to the current grid using its registered lane number and half. Editing cargo details does not change its lane number.",
+  "库位 {0} · 已对齐当前网格": "Lane {0} · Aligned to the current grid"
 }

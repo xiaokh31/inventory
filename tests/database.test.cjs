@@ -14,7 +14,7 @@ let admin, server, origin, handler, closeStore;
 let snapshot;
 const record = { id: 'shared-test-1', location: 'A-01', section: 'upper', sku: '', name: '数据库隔离测试', shipment: '', container: 'TEST-CONTAINER-001', owner: '', destination: 'ONT8', pallets: 2, cartons: 12, status: 'stored', notes: '', updatedAt: new Date().toISOString() };
 async function request(route, method = 'GET', body, headers = {}) {
-  if (body && typeof body === 'object') body = { clientLayoutVersion: 2, ...body };
+  if (body && typeof body === 'object') body = { clientLayoutVersion: 3, ...body };
   const response = await fetch(origin + route, { method, headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers }, body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body) });
   return { status: response.status, data: await response.json(), cookie: response.headers.get('set-cookie')?.split(';')[0] };
 }
@@ -99,11 +99,15 @@ test('layout upgrade reads legacy rows unchanged and blocks old pages before any
   assert.equal(saved.location, 'A-01'); assert.equal(Object.hasOwn(saved, 'layoutVersion'), false);
   const rejected = await request('/api/inventory', 'POST', { action: 'upsert', record, expectedVersion: legacy.data.versions[record.id], clientLayoutVersion: undefined }, { 'Accept-Language': 'en' });
   assert.equal(rejected.status, 400); assert.equal(rejected.data.code, 'LAYOUT_UPDATED'); assert.match(rejected.data.error, /Reload/);
+  for (const action of ['upsert', 'delete', 'replace']) {
+    const outdated = await request('/api/inventory', 'POST', { action, record, id: record.id, records: [], expectedVersion: legacy.data.versions[record.id], expectedRevision: revision, clientLayoutVersion: 2 });
+    assert.equal(outdated.status, 400); assert.equal(outdated.data.code, 'LAYOUT_UPDATED');
+  }
   const afterRead = await request('/api/inventory');
   assert.deepEqual(afterRead.data.records, legacy.data.records);
   assert.deepEqual(afterRead.data.versions, legacy.data.versions); assert.equal(afterRead.data.revision, revision);
   const { placementForEdit } = require('../src/app.js');
-  const edited = await request('/api/inventory', 'POST', { action: 'upsert', record: { ...saved, ...placementForEdit(saved, 'A-02', 'upper'), container: 'DETAILS-ONLY' }, expectedVersion: legacy.data.versions[record.id] });
+  const edited = await request('/api/inventory', 'POST', { action: 'upsert', record: { ...saved, ...placementForEdit(saved, 'A-01', 'upper'), container: 'DETAILS-ONLY' }, expectedVersion: legacy.data.versions[record.id] });
   assert.equal(edited.status, 200); assert.equal(edited.data.records[0].location, 'A-01'); assert.equal(Object.hasOwn(edited.data.records[0], 'layoutVersion'), false);
   const added = await request('/api/inventory', 'POST', { action: 'upsert', record: { ...record, id: 'new-layout', location: 'C-19', layoutVersion: 2 }, expectedVersion: 0 });
   assert.equal(added.status, 200); assert.equal(added.data.records.find(r => r.id === 'new-layout').layoutVersion, 2);

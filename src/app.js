@@ -52,28 +52,24 @@
   const LEGACY_LANES = createLanes(true);
   const LEGACY_LANE_BY_ID = Object.fromEntries(LEGACY_LANES.map(lane => [lane.id, lane]));
   function recordLaneId(record) {
-    if (record.layoutVersion === 2) return record.location;
-    const lane = LEGACY_LANE_BY_ID[record.location];
-    if (!lane) return record.location;
-    const center = lane.x + lane.width / 2;
-    return LANES.filter(item => item.zone === lane.zone).reduce((best, item) => Math.abs(item.x + item.width / 2 - center) < Math.abs(best.x + best.width / 2 - center) ? item : best).id;
+    // Stored lane numbers identify the real warehouse lanes, regardless of record age.
+    return record.location;
   }
   function placementForEdit(original, location, section) {
-    // Editing cargo metadata must never silently move a legacy physical anchor.
+    // Metadata and half-only edits retain the stored lane number and record format.
     return original && recordLaneId(original) === location
       ? { location: original.location, ...(original.layoutVersion === undefined ? {} : { layoutVersion: original.layoutVersion }) }
       : { location, layoutVersion: 2 };
   }
   function palletFigures(records) {
     const figures = [];
-    for (const legacy of [true, false]) {
-      for (const lane of legacy ? LEGACY_LANES : LANES) for (const section of ['upper', 'lower']) {
-        const batches = records.filter(r => (r.layoutVersion !== 2) === legacy && r.location === lane.id && sectionOf(r) === section);
-        const positions = lane.sections[section].positions.filter(position => legacy || !figures.some(item => intersects(position, item.position)));
-        let index = 0;
-        for (const record of batches) for (let n = 0; n < record.pallets && index < positions.length; n++) {
-          figures.push({ record, location: recordLaneId(record), section, position: positions[index++] });
-        }
+    // All batches share the current grid and the same per-half position allocator.
+    for (const lane of LANES) for (const section of ['upper', 'lower']) {
+      const batches = records.filter(r => r.location === lane.id && sectionOf(r) === section);
+      const positions = lane.sections[section].positions;
+      let index = 0;
+      for (const record of batches) for (let n = 0; n < record.pallets && index < positions.length; n++) {
+        figures.push({ record, location: lane.id, section, position: positions[index++] });
       }
     }
     return figures;
@@ -247,7 +243,7 @@
   }
   async function mutateInventory(payload) {
     if (!state.online) throw new Error(ui('数据库未连接，请同步成功后再保存。'));
-    try { applySnapshot(await api('/api/inventory', 'POST', { ...payload, clientLayoutVersion: 2 })); }
+    try { applySnapshot(await api('/api/inventory', 'POST', { ...payload, clientLayoutVersion: 3 })); }
     catch (error) {
       if (error.status === 409 && error.code !== 'LAYOUT_UPDATED') { await refreshInventory(); error.message = ui('这条货物或共享库存已被他人修改。草稿已保留，请复制需要保留的内容，关闭后重新打开最新记录核对。'); }
       else if (!error.status || error.status >= 500) { syncStatus(false, error.message); void refreshInventory(); }
@@ -364,7 +360,7 @@
       add(g, 'text', { x: lane.x + lane.width / 2, y: lane.y - 8, class: 'lane-label', visibility: $('show-labels').checked ? 'visible' : 'hidden' }, String(lane.number).padStart(2, '0'));
       add(g, 'title', {}, ui`${lane.id} · ${records.length} 批货物 · ${records.reduce((n, r) => n + r.pallets, 0)} 托`);
     }
-    // Draw all cargo above the grid so a revised boundary cannot obscure an old anchor.
+    // Draw cargo above its matching lane grid, using the same current positions.
     for (const item of palletFigures(state.records)) {
       const { record, position, location, section } = item, color = cargoColor(record, state.colors);
       const group = add(layer, 'g', { class: `cargo-figure${matches.has(location) ? '' : ' dimmed'}`, 'data-location': location, 'data-section': section });
@@ -411,7 +407,7 @@
     $('destination-legend').innerHTML = groups.size ? ui`<div class="color-legend-heading">目的仓 / 柜号配色 <span>同仓同色系 · 不同柜号以深浅区分 · 状态见货物详情</span></div><div class="color-legend-list">${[...groups].sort(([a], [b]) => a.localeCompare(b)).map(([, group]) => `<div class="destination-color-group"><strong>${colorSwatch(group.record, true)}${esc(group.record.destination || ui('目的仓未填写'))}</strong><div>${[...group.containers].sort(([a], [b]) => a.localeCompare(b)).map(([, item]) => ui`<span class="container-color-key">${colorSwatch(item.record)}<span>${esc(item.record.container || ui('柜号未填写'))}</span><small>${fmt(item.pallets)} 托</small></span>`).join('')}</div></div>`).join('')}</div>` : `<p class="color-legend-empty">${state.records.length ? ui('当前筛选没有货物配色') : ui('登记货物后显示目的仓与柜号颜色图例')}</p>`;
   }
   function cargoCard(record) {
-    return ui`<article class="cargo-card colored-cargo" style="--cargo-color:${cargoColor(record, state.colors).fill}"><div class="cargo-card-top"><h3>${esc(record.name)}</h3><span class="badge ${record.status}">${STATUS[record.status]}</span></div>${record.layoutVersion !== 2 ? ui`<p class="legacy-location">原编号 ${esc(record.location)} · 位置保留</p>` : ''}<p class="cargo-sku">${esc(record.sku || ui('SKU 未填写'))}</p><div class="cargo-field"><span>所在半区</span><strong>${SECTIONS[sectionOf(record)]}</strong></div><div class="cargo-field"><span>货件号</span><strong>${esc(record.shipment || '—')}</strong></div><div class="cargo-field"><span>柜号</span><strong>${colorSwatch(record)}${esc(record.container || ui('未填写'))}</strong></div><div class="cargo-field"><span>目的仓</span><strong>${colorSwatch(record, true)}${esc(record.destination || ui('未填写'))}</strong></div><div class="cargo-field"><span>货主</span><strong>${esc(record.owner || '—')}</strong></div><div class="cargo-field"><span>数量</span><strong>${fmt(record.pallets)} 托 / ${fmt(record.cartons)} 箱</strong></div>${record.notes ? `<p class="cargo-notes">${esc(record.notes)}</p>` : ''}<div class="cargo-card-actions"><button data-edit="${esc(record.id)}">编辑 / 移库 ↗</button><button class="remove-cargo" data-remove="${esc(record.id)}">移出此批</button></div></article>`;
+    return ui`<article class="cargo-card colored-cargo" style="--cargo-color:${cargoColor(record, state.colors).fill}"><div class="cargo-card-top"><h3>${esc(record.name)}</h3><span class="badge ${record.status}">${STATUS[record.status]}</span></div>${record.layoutVersion !== 2 ? ui`<p class="legacy-location">库位 ${esc(record.location)} · 已对齐当前网格</p>` : ''}<p class="cargo-sku">${esc(record.sku || ui('SKU 未填写'))}</p><div class="cargo-field"><span>所在半区</span><strong>${SECTIONS[sectionOf(record)]}</strong></div><div class="cargo-field"><span>货件号</span><strong>${esc(record.shipment || '—')}</strong></div><div class="cargo-field"><span>柜号</span><strong>${colorSwatch(record)}${esc(record.container || ui('未填写'))}</strong></div><div class="cargo-field"><span>目的仓</span><strong>${colorSwatch(record, true)}${esc(record.destination || ui('未填写'))}</strong></div><div class="cargo-field"><span>货主</span><strong>${esc(record.owner || '—')}</strong></div><div class="cargo-field"><span>数量</span><strong>${fmt(record.pallets)} 托 / ${fmt(record.cartons)} 箱</strong></div>${record.notes ? `<p class="cargo-notes">${esc(record.notes)}</p>` : ''}<div class="cargo-card-actions"><button data-edit="${esc(record.id)}">编辑 / 移库 ↗</button><button class="remove-cargo" data-remove="${esc(record.id)}">移出此批</button></div></article>`;
   }
   function renderDetail() {
     if (state.dock) {
@@ -536,9 +532,7 @@
   }
   function editorLabels() {
     $('editor-title').textContent = editorOriginal ? ui('编辑货物 / 移库') : ui('货物入库');
-    $('editor-description').textContent = editorOriginal && editorOriginal.layoutVersion !== 2
-      ? ui`原编号 ${editorOriginal.location} 对应新列 ${recordLaneId(editorOriginal)}，货物位置保留。仅修改信息或半区不会改变横向位置；选择其他纵列才按新列移库。`
-      : ui('以原图立柱横线为界选择上半区或下半区；旋转不改变方位。修改纵列或半区即可移库。');
+    $('editor-description').textContent = ui('以原图立柱横线为界选择上半区或下半区；旋转不改变方位。修改纵列或半区即可移库。');
   }
   function openEditor(recordId = null, location = state.selected, section = location === state.selected ? state.selectedSection : null) {
     if (!state.online) { toast(ui('数据库未连接，请先同步。')); return; }
