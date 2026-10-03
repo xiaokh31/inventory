@@ -6,7 +6,7 @@
   "scripts": {
     "build": "node scripts/build.cjs",
     "start": "node scripts/serve.cjs",
-    "test": "node --test tests/model.test.cjs tests/build.test.cjs",
+    "test": "node --test tests/model.test.cjs tests/build.test.cjs tests/i18n.test.cjs",
     "test:database": "node --test tests/database.test.cjs",
     "db:migrate": "node scripts/migrate.cjs",
     "docker:up": "docker compose --env-file .env.docker up -d --build --wait app",

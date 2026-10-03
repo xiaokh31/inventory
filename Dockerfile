@@ -27,7 +27,7 @@ COPY --from=dependencies --chown=node:node /app/node_modules ./node_modules
 COPY --from=source --chown=node:node /app/package.json ./package.json
 COPY --from=source --chown=node:node /app/index.html ./index.html
 COPY --from=source --chown=node:node /app/server ./server
-COPY --from=source --chown=node:node /app/src/app.js ./src/app.js
+COPY --from=source --chown=node:node /app/src ./src
 COPY --from=source --chown=node:node /app/db ./db
 COPY --from=source --chown=node:node /app/scripts/serve.cjs /app/scripts/migrate.cjs /app/scripts/healthcheck.cjs ./scripts/
 USER node

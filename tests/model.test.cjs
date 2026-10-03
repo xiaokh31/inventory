@@ -18,17 +18,17 @@ test('quarter-turn bounds preserve every map point and reverse without coordinat
   }
 });
 
-test('45 whole-lane locations numbered right to left, with 7.5 lanes per 12 m column bay', () => {
-  assert.equal(m.LANES.length, 45);
-  assert.equal(new Set(m.LANES.map(l => l.id)).size, 45);
-  assert.ok(Math.abs(7.5 * m.LANE_WIDTH - 201) < 1e-8);
+test('57 lanes with pillar centers aligned to lanes 01, 10 and 19', () => {
+  assert.equal(m.LANES.length, 57);
+  assert.equal(new Set(m.LANES.map(l => l.id)).size, 57);
+  assert.ok(Math.abs(9 * m.LANE_WIDTH - 201) < 1e-8);
   for (const z of m.ZONES) {
     const lanes = m.LANES.filter(l => l.zone === z.id);
-    assert.equal(lanes.length, 15);
+    assert.equal(lanes.length, 19);
     assert.equal(lanes[0].id, z.id + '-01');
-    assert.equal(lanes[14].id, z.id + '-15');
-    assert.ok(Math.abs(lanes[0].x + lanes[0].width - (z.x + z.width)) < 1e-8);
-    assert.ok(Math.abs(lanes[14].x - z.x) < 1e-8);
+    assert.equal(lanes[18].id, z.id + '-19');
+    assert.ok(Math.abs(lanes[0].x + lanes[0].width / 2 - (z.x + z.width)) < 1e-8);
+    assert.ok(Math.abs(lanes[18].x + lanes[18].width / 2 - z.x) < 1e-8);
     for (let i = 1; i < lanes.length; i++) assert.ok(lanes[i].x < lanes[i - 1].x);
   }
 });
@@ -42,7 +42,7 @@ test('pallet figures are vertical, inside ABC zones, and do not touch expanded c
       assert.ok(!m.COLUMNS.some(c => m.intersects(p, { x: c.x - 5, y: c.y - 5, width: 10, height: 10 })));
     }
   }
-  assert.ok(m.LANE_BY_ID['A-08'].capacity < m.LANE_BY_ID['A-05'].capacity);
+  assert.ok(Math.abs(m.LANE_BY_ID['A-10'].x + m.LANE_WIDTH / 2 - 811) < 1e-8);
 });
 test('12 docks are numbered 23 to 34 from bottom to top', () => {
   assert.deepEqual(m.DOCKS.map(d => d.number), Array.from({ length: 12 }, (_, i) => i + 23));
@@ -52,13 +52,13 @@ test('12 docks are numbered 23 to 34 from bottom to top', () => {
 test('batch records aggregate by whole lane and round-trip unchanged in a v3 backup', () => {
   const data = m.validateRecords(fixtures.records());
   const summary = m.summaries(data);
-  assert.equal(summary.total, 45);
+  assert.equal(summary.total, 57);
   assert.ok(data.length > summary.occupied);
-  assert.equal(summary.occupied + summary.empty, 45);
+  assert.equal(summary.occupied + summary.empty, 57);
   const backup = JSON.stringify({ format: 'bestar-warehouse-lanes', version: 3, mode: 'local', records: data });
   assert.deepEqual(m.parseBackup(backup).records, data);
   assert.equal(m.parseBackup(backup).renumbered, false);
-  assert.deepEqual(m.summaries([]), { total: 45, occupied: 0, empty: 45, pallets: 0, cartons: 0 });
+  assert.deepEqual(m.summaries([]), { total: 57, occupied: 0, empty: 57, pallets: 0, cartons: 0 });
 });
 test('search combines zone, status and SKU/location/shipment/destination fields', () => {
   const records = fixtures.records();
@@ -66,7 +66,7 @@ test('search combines zone, status and SKU/location/shipment/destination fields'
   assert.ok(one);
   assert.equal(m.queryRecords(records, 'B', one.status, one.shipment).length, 1);
   assert.equal(m.queryRecords(records, 'A', 'all', one.shipment).length, 0);
-  assert.ok(m.queryRecords(records, 'all', 'all', 'a-05').every(r => r.location === 'A-05'));
+  assert.ok(m.queryRecords(records, 'all', 'all', 'a-05').every(r => r.location === 'A-05' || m.recordLaneId(r) === 'A-05'));
   assert.equal(m.queryRecords(records, 'all', 'empty').length, 0);
   assert.equal(m.queryRecords(records, 'all', 'all', 'ont8').length, 1);
   assert.equal(m.queryRecords(records, 'B', 'outbound', '中转仓').length, 1);
@@ -110,7 +110,7 @@ test('startup clears retired demo storage and retains actual local records and u
   assert.equal(values.get(prefix + ':local'), 'damaged');
 });
 test('v1/v2 backups retain every physical lane and quantity when reversing the labels', () => {
-  const oldRecords = m.LANES.map((lane, i) => ({ ...fixtures.records()[0], id: 'old-' + i, location: lane.id }));
+  const oldRecords = m.LEGACY_LANES.map((lane, i) => ({ ...fixtures.records()[0], id: 'old-' + i, location: lane.id }));
   for (const version of [1, 2]) {
     const result = m.parseBackup(JSON.stringify({ format: 'bestar-warehouse-lanes', version, records: oldRecords }));
     assert.equal(result.renumbered, true);
@@ -118,8 +118,8 @@ test('v1/v2 backups retain every physical lane and quantity when reversing the l
       const old = oldRecords[i];
       const current = result.records[i];
       const zone = m.ZONES.find(z => z.id === old.location[0]);
-      const oldX = zone.x + (Number(old.location.slice(2)) - 1) * m.LANE_WIDTH;
-      assert.ok(Math.abs(m.LANE_BY_ID[current.location].x - oldX) < 1e-8);
+      const oldX = zone.x + (Number(old.location.slice(2)) - 1) * m.LEGACY_LANE_WIDTH;
+      assert.ok(Math.abs(m.LEGACY_LANE_BY_ID[current.location].x - oldX) < 1e-8);
       assert.deepEqual({ ...current, location: old.location }, { ...old, section: 'unspecified', container: '' });
     }
   }
@@ -209,4 +209,44 @@ test('the shared inventory palette separates close warehouses and containers ind
   for (const record of records) assert.deepEqual(m.cargoColor(record, palette), m.cargoColor(record, reversed));
   const changed = m.createCargoPalette([...records, { ...records[0], destination: ' ont8 ', container: 'cont-001', location: 'C-15', pallets: 8 }]);
   for (const record of records) assert.deepEqual(m.cargoColor(record, palette), m.cargoColor(record, changed));
+});
+
+test('every pre-upgrade pallet coordinate remains identical and database fields are not renumbered', () => {
+  const baseline = require('./legacy-layout-v1.json');
+  for (const lane of m.LEGACY_LANES) for (const section of ['upper', 'lower']) {
+    const original = { ...fixtures.records()[0], location: lane.id, section, pallets: 100 };
+    const serialized = JSON.stringify(original);
+    const figures = m.palletFigures([original]);
+    assert.deepEqual(figures.map(item => item.position), baseline.positions[lane.id][section].positions);
+    assert.equal(JSON.stringify(original), serialized);
+    assert.equal(m.validateRecords([original])[0].location, lane.id);
+    assert.equal(Object.hasOwn(m.validateRecords([original])[0], 'layoutVersion'), false);
+  }
+  assert.deepEqual(m.LEGACY_LANES.slice(0, 15).map(lane => m.recordLaneId({ location: lane.id })), ['A-02','A-03','A-04','A-05','A-06','A-08','A-09','A-10','A-11','A-12','A-14','A-15','A-16','A-17','A-18']);
+});
+
+test('metadata edits and half-only moves preserve old horizontal anchors; explicit lane moves use layout 2', () => {
+  const old = { ...fixtures.records()[0], location: 'A-01', section: 'upper' };
+  assert.deepEqual(m.placementForEdit(old, 'A-02', 'upper'), { location: 'A-01' });
+  assert.deepEqual(m.placementForEdit(old, 'A-02', 'lower'), { location: 'A-01' });
+  assert.deepEqual(m.placementForEdit(old, 'A-19', 'upper'), { location: 'A-19', layoutVersion: 2 });
+  assert.deepEqual(m.placementForEdit(null, 'C-19', 'lower'), { location: 'C-19', layoutVersion: 2 });
+});
+
+test('mixed layouts round-trip in v5 backups without changing positions or inventory totals', () => {
+  const old = { ...fixtures.records()[0], location: 'A-01', section: 'upper', pallets: 1 };
+  const fresh = { ...old, id: 'new-grid', location: 'A-02', layoutVersion: 2 };
+  const data = m.validateRecords([old, fresh]);
+  const backup = m.parseBackup(JSON.stringify({ format: 'bestar-warehouse-lanes', version: 5, records: data })).records;
+  assert.deepEqual(backup, data);
+  assert.deepEqual(m.palletFigures(backup), m.palletFigures(data));
+  assert.equal(m.summaries(data).occupied, 1);
+  assert.equal(m.summaries(data).pallets, 2);
+  const figures = m.palletFigures(data);
+  assert.equal(figures.length, 2);
+  assert.equal(m.intersects(figures[0].position, figures[1].position), false);
+  assert.throws(() => m.validateRecords([{ ...old, location: 'A-19' }]));
+  assert.throws(() => m.validateRecords([{ ...old, layoutVersion: 3 }]));
+  assert.equal(m.validateRecords([{ ...fresh, location: 'C-19' }])[0].location, 'C-19');
+  assert.throws(() => m.parseBackup(JSON.stringify({ format: 'bestar-warehouse-lanes', version: 4, records: data })));
 });

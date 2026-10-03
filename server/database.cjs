@@ -28,6 +28,8 @@ function createStore(pool) {
     read: () => transaction(snapshot, true),
     async mutate(input) {
       if (!input || !['upsert', 'delete', 'replace'].includes(input.action)) throw Object.assign(new Error('不支持的库存操作。'), { status: 400 });
+      // Use a validation error so the old UI does not replace this reload message with its generic 409 conflict text.
+      if (input.clientLayoutVersion !== 2) throw Object.assign(new Error('库位布局已更新，请刷新页面后再操作。'), { status: 400, code: 'LAYOUT_UPDATED' });
       let records;
       try {
         if (input.action === 'upsert') records = validateRecords([{ ...input.record, updatedAt: new Date().toISOString() }]);

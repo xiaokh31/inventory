@@ -9,6 +9,7 @@ const id = process.env.SMOKE_RECORD_ID || 'deploy-smoke-' + crypto.randomUUID();
 if (!/^deploy-smoke-[a-z0-9-]+$/.test(id)) throw new Error('Only deploy-smoke IDs may be used.');
 if (mode !== 'full' && !process.env.SMOKE_RECORD_ID) throw new Error('Persistence checks require the same explicit SMOKE_RECORD_ID.');
 async function request(route, method = 'GET', body) {
+  if (body) body = { clientLayoutVersion: 2, ...body };
   const response = await fetch(origin + route, { method, headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(method === 'GET' ? {} : { Origin: new URL(origin).origin }) }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(10000) });
   return { status: response.status, data: await response.json(), cookie: response.headers.get('set-cookie')?.split(';')[0] };
 }
@@ -18,9 +19,11 @@ async function request(route, method = 'GET', body) {
   assert.equal(home.status, 200); const html = await home.text();
   assert.match(html, /id="rotate-right"/); assert.match(html, /id="cargo-destination"/); assert.match(html, /id="cargo-container"/);
   assert.match(html, /id="destination-legend"/);
+  assert.match(html, /data-locale="en"/);
+  assert.match(html, /LANES_PER_ZONE = 19/);
   assert.equal((await request('/api/inventory')).status, 200);
   assert.doesNotMatch(html, /id="login-dialog"|id="logout-button"/);
-  const record = { id, location: 'A-01', section: 'upper', sku: '', name: 'Docker 临时验证记录', shipment: '', container: 'TEST-CONTAINER-001', owner: '', destination: 'ONT8', pallets: 1, cartons: 12, status: 'stored', notes: '自动检查结束后清理', updatedAt: new Date().toISOString() };
+  const record = { id, layoutVersion: 2, location: 'A-19', section: 'upper', sku: '', name: 'Docker 临时验证记录', shipment: '', container: 'TEST-CONTAINER-001', owner: '', destination: 'ONT8', pallets: 1, cartons: 12, status: 'stored', notes: '自动检查结束后清理', updatedAt: new Date().toISOString() };
   let created = false;
   try {
     if (mode === 'verify-clean') {

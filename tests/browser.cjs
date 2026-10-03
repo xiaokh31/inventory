@@ -11,8 +11,9 @@ if (!url) throw new Error('Set BROWSER_TEST_URL explicitly. This test never writ
     await page.goto(url);
     assert.equal(await page.locator('#login-dialog, #logout-button').count(), 0);
     await page.locator('#connection-label[data-status=online]').waitFor();
-    assert.equal(await page.locator('.lane').count(), 45); assert.equal(await page.locator('.dock').count(), 12);
-    assert.equal(await page.locator('.lane-half').count(), 90);
+    await page.locator('[data-locale="zh-CN"]').click();
+    assert.equal(await page.locator('.lane').count(), 57); assert.equal(await page.locator('.dock').count(), 12);
+    assert.equal(await page.locator('.lane-half').count(), 114);
     for (const expected of ['90°', '180°', '270°', '0°']) {
       await page.locator('#rotate-right').click(); assert.equal(await page.locator('#rotation-label').textContent(), expected);
       await page.locator('[data-location="B-03"][data-section="upper"]').click(); assert.equal(await page.locator('.detail-location-heading h2').textContent(), 'B-03');

@@ -1,5 +1,6 @@
 const { getStore } = require('./database.cjs');
-function json(res, status, data) { res.statusCode = status; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Content-Type-Options', 'nosniff'); res.end(JSON.stringify(data)); }
+const { localizeError } = require('../src/errors.cjs');
+function json(res, status, data) { if (data.error) data = { ...data, error: localizeError(data.error, res.locale) }; res.statusCode = status; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Content-Type-Options', 'nosniff'); res.end(JSON.stringify(data)); }
 async function body(req) {
   if (!String(req.headers['content-type'] || '').startsWith('application/json')) throw Object.assign(new Error('请求必须使用 JSON。'), { status: 415 });
   if (Number(req.headers['content-length'] || 0) > 4 * 1024 * 1024) throw Object.assign(new Error('请求过大，请使用 4 MB 以内的备份。'), { status: 413 });
@@ -18,6 +19,7 @@ function sameOrigin(req) {
   try { return expected ? req.headers.origin === new URL(expected).origin : new URL(req.headers.origin).host === req.headers.host; } catch { return false; }
 }
 async function handler(req, res) {
+  res.locale = req.headers['accept-language']?.split(',')[0] || 'zh-CN';
   try {
     if (!['GET', 'POST'].includes(req.method)) { res.setHeader('Allow', 'GET, POST'); return json(res, 405, { error: '不支持的请求方法。' }); }
     if (req.method !== 'GET' && !sameOrigin(req)) return json(res, 403, { error: '请求来源不匹配，请从本站页面操作。' });
@@ -34,7 +36,7 @@ async function handler(req, res) {
   } catch (error) {
     const status = error.status || 503;
     if (!error.status) console.error('Inventory API unavailable:', error.code || error.name);
-    return json(res, status, { error: error.status ? error.message : '数据库暂不可用，请检查连接与初始化状态后重试。' });
+    return json(res, status, { error: error.status ? error.message : '数据库暂不可用，请检查连接与初始化状态后重试。', ...(error.code === 'LAYOUT_UPDATED' ? { code: error.code } : {}) });
   }
 }
 module.exports = { handler, sameOrigin };
